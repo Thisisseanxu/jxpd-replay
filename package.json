@@ -1,0 +1,32 @@
+{
+  "name": "jxpd-replay",
+  "version": "0.1.0",
+  "private": true,
+  "engines": {
+    "node": ">=22.13.0"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "start": "vite preview",
+    "lint": "oxlint src",
+    "typecheck": "vue-tsc --noEmit",
+    "format": "oxfmt"
+  },
+  "dependencies": {
+    "@icon-park/vue-next": "^1.4.2",
+    "fflate": "^0.8.3",
+    "vue": "^3.5.34"
+  },
+  "devDependencies": {
+    "@types/node": "22.19.19",
+    "@vitejs/plugin-vue": "^6.0.7",
+    "oxfmt": "0.61.0",
+    "oxlint": "1.76.0",
+    "typescript": "5.9.3",
+    "vite": "^8.0.14",
+    "vite-plugin-vue-devtools": "^8.2.1",
+    "vue-tsc": "^3.0.0"
+  },
+  "type": "module"
+}
