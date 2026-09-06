@@ -1,12 +1,7 @@
 <template>
   <section class="panel upload-panel">
     <div class="panel-kicker"><span class="step-dot">01</span> 导入回放</div>
-    <input
-      ref="inputRef"
-      type="file"
-      class="sr-only"
-      @change="onFileChange"
-    />
+    <input ref="inputRef" type="file" class="sr-only" @change="onFileChange" />
 
     <div
       v-if="file && analysis"
@@ -56,14 +51,6 @@
         <FolderOpen size="14" fill="currentColor" /> 选择文件
       </div>
     </button>
-
-    <div class="panel-footer">
-      <span class="status-line"
-        ><span class="status-light" :class="{ 'is-busy': busy }" />
-        {{ notice }}</span
-      >
-      <span class="format-hint">Replay binary · 6-byte frame header</span>
-    </div>
   </section>
 </template>
 

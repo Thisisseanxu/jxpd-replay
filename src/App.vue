@@ -51,13 +51,24 @@
       </aside>
     </section>
 
-    <footer class="page-footer"></footer>
+    <footer class="page-footer">
+      <span class="footer-meta">
+        <span>吉星派对 Replay Lab</span>
+        <span>v{{ appVersion }}</span>
+      </span>
+      <a
+        href="https://github.com/Thisisseanxu/jxpd-replay"
+        target="_blank"
+        rel="noopener noreferrer"
+        ><GithubOne theme="outline" size="14" />开源地址</a
+      >
+    </footer>
   </main>
 </template>
 
 <script setup lang="ts">
 import { computed, ref } from "vue";
-import { Lock, Magic, Shield, Star } from "@icon-park/vue-next";
+import { GithubOne, Star } from "@icon-park/vue-next";
 import { zipSync } from "fflate";
 import AnonymizeSettings from "./components/AnonymizeSettings.vue";
 import ReplayOverview from "./components/ReplayOverview.vue";
@@ -75,6 +86,7 @@ const dragging = ref(false);
 const busy = ref(false);
 const notice = ref("等待导入回放文件");
 const lastExport = ref<string | null>(null);
+const appVersion = __APP_VERSION__;
 
 const players = computed(() => analysis.value?.players ?? []);
 
@@ -124,9 +136,7 @@ function normalizeExportName(value: string, fallback: string) {
   const safeName = candidate
     .replace(/[<>:"/\\|?*]/g, "_")
     .split("")
-    .map((character) =>
-      character.charCodeAt(0) < 32 ? "_" : character,
-    )
+    .map((character) => (character.charCodeAt(0) < 32 ? "_" : character))
     .join("")
     .replace(/[. ]+$/g, "");
   return safeName || "replay";
@@ -346,6 +356,24 @@ h1 {
   font-size: 10px;
   letter-spacing: 0.04em;
 }
+.footer-meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.page-footer a {
+  display: flex;
+  align-items: center;
+  gap: 0;
+  color: var(--purple-bright);
+  line-height: 1;
+  text-decoration: none;
+  transition: color 0.18s ease;
+}
+.page-footer a:hover {
+  color: var(--ink);
+  text-decoration: underline;
+}
 
 @media (max-width: 860px) {
   .content-grid {
@@ -378,6 +406,9 @@ h1 {
     align-items: flex-start;
     flex-direction: column;
     gap: 7px;
+  }
+  .footer-meta {
+    gap: 9px;
   }
 }
 </style>

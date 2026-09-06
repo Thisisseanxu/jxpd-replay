@@ -31,6 +31,9 @@ button:focus-visible, [role='button']:focus-visible, input:focus-visible + .togg
 button:disabled { cursor: not-allowed; opacity: .48; }
 .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 
+/* IconPark 图标使用 inline-flex 后可与文字垂直居中。 */
+.i-icon { display: inline-flex; align-items: center; justify-content: center; }
+
 .panel { border: 1px solid var(--line); border-radius: 18px; background: linear-gradient(145deg, rgba(37, 24, 69, .77), rgba(23, 15, 45, .84)); box-shadow: 0 20px 70px rgba(0, 0, 0, .18), inset 0 1px 0 rgba(255, 255, 255, .035); }
 .panel-kicker { display: flex; align-items: center; gap: 9px; color: var(--muted); font-family: 'Manrope', 'Noto Sans SC', sans-serif; font-size: 11px; font-weight: 800; letter-spacing: .09em; text-transform: uppercase; }
 .step-dot { display: grid; place-items: center; width: 21px; height: 21px; border: 1px solid rgba(244, 198, 108, .38); border-radius: 7px; color: var(--gold); background: rgba(244, 198, 108, .08); font-size: 9px; letter-spacing: 0; }
