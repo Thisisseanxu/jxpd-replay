@@ -28,6 +28,7 @@ export type ReplayAnalysis = {
 
 type TransformContext = {
   players: Map<string, PlayerRecord>
+  playerIds: Map<string, bigint>
   revealPlayers: Set<number>
   preserveRoomName: boolean
   replayId: string
@@ -277,16 +278,39 @@ function withText(field: WireField, value: string): WireField {
   return { ...field, value: asBytes(value) }
 }
 
+function withFixed64(field: WireField, value: bigint): WireField {
+  const bytes = new Uint8Array(8)
+  new DataView(bytes.buffer).setBigUint64(0, value, true)
+  return { ...field, value: bytes }
+}
+
+function anonymousPlayerIds(players: PlayerRecord[]) {
+  const firstAnonymousId = 992331n
+  return new Map(
+    players.map((player, index) => [
+      player.id.toString(),
+      firstAnonymousId + BigInt(index),
+    ]),
+  )
+}
+
 function transformPlayer(data: Uint8Array, context: TransformContext) {
   const fields = parseFields(data)
   const idField = getField(fields, 1)
   const id = idField?.wireType === 1 ? fixed64(idField.value) : 0n
   const record = context.players.get(id.toString())
+  const anonymousId = context.playerIds.get(id.toString())
   const playerNumber = record ? Number(record.label.replace('Player', '')) : 0
   const shouldReveal = context.revealPlayers.has(playerNumber)
   let changed = false
 
   const output = fields.flatMap((field) => {
+    if (field.number === 1 && field.wireType === 1 && anonymousId !== undefined) {
+      changed = true
+      context.changedFields += 1
+      return [withFixed64(field, anonymousId)]
+    }
+
     if (field.number === 2 && field.wireType === 2) {
       const nextName = shouldReveal && record?.originalName ? record.originalName : record?.label ?? 'Player'
       const fieldChanged = asText(field.value) !== nextName
@@ -309,6 +333,55 @@ function transformPlayer(data: Uint8Array, context: TransformContext) {
       return []
     }
     return [field]
+  })
+
+  return changed ? encodeFields(output) : data
+}
+
+function remapPackedFixed64(value: Uint8Array, context: TransformContext) {
+  if (value.length === 0 || value.length % 8 !== 0) return null
+
+  let output: Uint8Array | null = null
+  for (let offset = 0; offset < value.length; offset += 8) {
+    const anonymousId = context.playerIds.get(fixed64(value.slice(offset, offset + 8)).toString())
+    if (anonymousId === undefined) continue
+    output ??= value.slice()
+    new DataView(output.buffer, output.byteOffset + offset, 8).setBigUint64(0, anonymousId, true)
+    context.changedFields += 1
+  }
+  return output
+}
+
+function remapPlayerIds(data: Uint8Array, context: TransformContext): Uint8Array {
+  let fields: WireField[]
+  try {
+    fields = parseFields(data)
+  } catch {
+    // 回放中可能包含非 protobuf 的 blob；无法解析时保持原样。
+    return data
+  }
+
+  let changed = false
+  const output = fields.map((field) => {
+    if (field.wireType === 1) {
+      const anonymousId = context.playerIds.get(fixed64(field.value).toString())
+      if (anonymousId !== undefined) {
+        changed = true
+        context.changedFields += 1
+        return withFixed64(field, anonymousId)
+      }
+    } else if (field.wireType === 2) {
+      const value = field.value as Uint8Array
+      const packed = remapPackedFixed64(value, context)
+      const nestedValue = packed ?? value
+      const next = remapPlayerIds(nestedValue, context)
+      if (packed || next !== nestedValue) {
+        changed = true
+        return { ...field, value: next === nestedValue ? nestedValue : next }
+      }
+    }
+
+    return field
   })
 
   return changed ? encodeFields(output) : data
@@ -349,6 +422,7 @@ function randomReplayId() {
 export function anonymizeReplay(analysis: ReplayAnalysis, revealPlayers: Set<number>, preserveRoomName: boolean) {
   const context: TransformContext = {
     players: new Map(analysis.players.map((player) => [player.id.toString(), player])),
+    playerIds: anonymousPlayerIds(analysis.players),
     revealPlayers,
     preserveRoomName,
     replayId: randomReplayId(),
@@ -373,6 +447,9 @@ export function anonymizeReplay(analysis: ReplayAnalysis, revealPlayers: Set<num
       )
       payload = encodeFields(output)
     }
+    // 玩家 ID 不只出现在 Room.Players 中，其他回放消息也可能通过 fixed64
+    // 或嵌套 protobuf 引用玩家；统一重写，避免游戏继续用原 ID 查询本机备注。
+    payload = remapPlayerIds(payload, context)
     return { ...frame, payload }
   })
 
