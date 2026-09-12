@@ -4,16 +4,16 @@
     <div class="ambient ambient-two" />
 
     <section class="workspace-heading">
-      <div class="eyebrow">
+      <div class="heading-lockup">
         <div class="brand-mark" aria-hidden="true">
           <img :src="logoUrl" alt="" />
         </div>
-        吉星派对
+        <div class="heading-copy">
+          <h1>回放匿名化工具</h1>
+          <p>在分享对局前匿名队友的信息吧~</p>
+        </div>
       </div>
-      <div class="heading-copy">
-        <h1>回放匿名化</h1>
-        <p>在分享对局前匿名队友的信息吧~</p>
-      </div>
+      <div class="eyebrow">吉星派对</div>
     </section>
 
     <section class="content-grid">
@@ -137,7 +137,9 @@ const updatePhase = ref<"downloading" | "ready" | "applying">("downloading");
 const updateStatusMessage = ref("新版本正在后台下载，期间仍可继续使用。");
 let updateFallbackTimer: number | null = null;
 let removeUpdateFoundListener: (() => void) | null = null;
-let updateServiceWorker: (reloadPage?: boolean) => Promise<void> | void = () => {};
+let updateServiceWorker: (
+  reloadPage?: boolean,
+) => Promise<void> | void = () => {};
 
 const needRefresh = ref(false);
 
@@ -191,7 +193,9 @@ watch(isUpdateDownloading, (value) => {
   }
 });
 
-function watchForServiceWorkerUpdates(registration: ServiceWorkerRegistration | undefined) {
+function watchForServiceWorkerUpdates(
+  registration: ServiceWorkerRegistration | undefined,
+) {
   if (!registration) return;
 
   const trackInstallingWorker = () => {
@@ -247,9 +251,13 @@ function confirmUpdate() {
     updateStatusMessage.value = "更新完成，正在刷新页面…";
     window.setTimeout(() => window.location.reload(), 200);
   };
-  navigator.serviceWorker.addEventListener("controllerchange", handleControllerChange, {
-    once: true,
-  });
+  navigator.serviceWorker.addEventListener(
+    "controllerchange",
+    handleControllerChange,
+    {
+      once: true,
+    },
+  );
 
   Promise.resolve(updateServiceWorker(true)).catch(() => {
     isUpdating.value = false;
@@ -424,9 +432,9 @@ function exportReplay() {
   gap: 11px;
 }
 .brand-mark {
-  width: 46px;
-  height: 46px;
-  flex: 0 0 46px;
+  width: 64px;
+  height: 64px;
+  flex: 0 0 64px;
 }
 .brand-mark img {
   display: block;
@@ -471,25 +479,28 @@ function exportReplay() {
   margin: 0 auto;
   padding: 16px 0 16px;
 }
+.heading-lockup {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  min-width: 0;
+}
 .heading-copy {
   min-width: 0;
-  margin-left: auto;
-  text-align: right;
 }
 .eyebrow {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: 14px;
   color: var(--gold);
-  font-size: 21px;
+  font-size: 40px;
   font-weight: 700;
   letter-spacing: 0.08em;
 }
 h1 {
-  margin: 11px 0 7px;
-  font-size: clamp(31px, 4vw, 46px);
+  margin: 0;
+  font-size: 32px;
   line-height: 1.1;
-  letter-spacing: -0.045em;
 }
 .workspace-heading p {
   margin: 0;
@@ -644,7 +655,9 @@ h1 {
   color: #24112f;
   background: linear-gradient(135deg, #e4b6ff, #a96cff);
   box-shadow: 0 7px 18px rgba(169, 108, 255, 0.23);
-  transition: filter 0.18s ease, transform 0.18s ease;
+  transition:
+    filter 0.18s ease,
+    transform 0.18s ease;
 }
 .update-button:hover {
   filter: brightness(1.08);
@@ -664,7 +677,9 @@ h1 {
 }
 .update-slide-enter-active,
 .update-slide-leave-active {
-  transition: opacity 0.24s ease, transform 0.24s ease;
+  transition:
+    opacity 0.24s ease,
+    transform 0.24s ease;
 }
 .update-slide-enter-from,
 .update-slide-leave-to {
@@ -672,14 +687,21 @@ h1 {
   transform: translateY(-12px) scale(0.98);
 }
 @keyframes update-spin {
-  from { transform: rotate(0deg); }
-  to { transform: rotate(360deg); }
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
 }
 .icon-spin {
   animation: update-spin 1s linear infinite;
 }
 
 @media (max-width: 860px) {
+  .workspace-heading > .eyebrow {
+    display: none;
+  }
   .content-grid {
     grid-template-columns: 1fr;
   }

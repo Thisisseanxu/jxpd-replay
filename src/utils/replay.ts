@@ -394,7 +394,7 @@ function transformRoom(data: Uint8Array, context: TransformContext) {
     if (field.number === 2 && field.wireType === 2 && !context.preserveRoomName) {
       changed = true
       context.changedFields += 1
-      return withText(field, '匿名房间')
+      return withText(field, 'match')
     }
     if ((field.number === 3 || field.number === 42) && field.wireType === 2) {
       if ((field.value as Uint8Array).length > 0) {

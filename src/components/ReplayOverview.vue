@@ -55,7 +55,7 @@
         </div>
       </template>
       <div v-else class="empty-players">
-        <Help size="16" fill="currentColor" /> 导入文件后会在这里显示玩家槽位
+        <Help size="16" fill="currentColor" /> 导入文件后会在这里显示玩家
       </div>
     </div>
   </section>
@@ -194,7 +194,7 @@ h2 {
   display: flex;
   align-items: center;
   gap: 8px;
-  padding: 18px 2px 2px;
+  padding: 8px 2px 2px;
   color: var(--soft);
   font-size: 12px;
 }
