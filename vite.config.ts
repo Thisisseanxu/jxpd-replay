@@ -12,10 +12,10 @@ export default defineConfig({
     }),
     vue(),
     VitePWA({
-      registerType: 'autoUpdate',
+      registerType: 'prompt',
       injectRegister: 'auto',
       devOptions: {
-        enabled: false,
+        enabled: true,
       },
       manifest: {
         name: '吉星派对回放匿名化',
@@ -29,15 +29,15 @@ export default defineConfig({
         start_url: './',
         icons: [
           {
-            src: 'pwa-icon.svg',
+            src: 'pwa-icon-192.webp',
             sizes: '192x192',
-            type: 'image/svg+xml',
+            type: 'image/webp',
             purpose: 'any maskable',
           },
           {
-            src: 'pwa-icon.svg',
+            src: 'pwa-icon-512.webp',
             sizes: '512x512',
-            type: 'image/svg+xml',
+            type: 'image/webp',
             purpose: 'any maskable',
           },
         ],
@@ -46,7 +46,7 @@ export default defineConfig({
         globPatterns: ['**/*'],
         cleanupOutdatedCaches: true,
         clientsClaim: true,
-        skipWaiting: true,
+        skipWaiting: false,
       },
     }),
   ],
