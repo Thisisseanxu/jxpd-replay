@@ -18,6 +18,8 @@
     "src/**/*.ts",
     "src/**/*.d.ts",
     "src/**/*.vue",
+    "cloud-functions/**/*.ts",
+    "tests/**/*.ts",
     "vite.config.ts"
   ],
   "exclude": ["node_modules"]

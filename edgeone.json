@@ -1,0 +1,37 @@
+{
+  "buildCommand": "npm run build",
+  "installCommand": "npm ci",
+  "outputDirectory": "dist",
+  "headers": [
+    {
+      "source": "/*",
+      "headers": [
+        { "key": "X-Frame-Options", "value": "DENY" },
+        { "key": "X-Content-Type-Options", "value": "nosniff" },
+        { "key": "Referrer-Policy", "value": "no-referrer" },
+        {
+          "key": "Permissions-Policy",
+          "value": "camera=(), microphone=(), geolocation=(), payment=()"
+        },
+        {
+          "key": "Content-Security-Policy",
+          "value": "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'"
+        }
+      ]
+    }
+  ],
+  "cloudFunctions": {
+    "nodejs": {
+      "maxDuration": 120
+    }
+  },
+  "schedules": [
+    {
+      "name": "daily-replay-cleanup",
+      "cron": "15 3 * * *",
+      "path": "/api/internal/replay-cleanup",
+      "method": "POST",
+      "timezone": "Asia/Shanghai"
+    }
+  ]
+}

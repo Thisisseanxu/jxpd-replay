@@ -1,5 +1,17 @@
 <template>
-  <main class="app-shell">
+  <SharedReplayView
+    v-if="sharedCapability"
+    :loading="sharedLoading"
+    :status="sharedStatus"
+    :error="sharedError"
+    :analysis="sharedAnalysis"
+    :privacy-mode="sharedPrivacyMode"
+    :expires-at="sharedExpiresAt"
+    @download="downloadSharedReplay"
+    @back="leaveSharedReplay"
+  />
+
+  <main v-else class="app-shell">
     <div class="ambient ambient-one" />
     <div class="ambient ambient-two" />
 
@@ -47,6 +59,21 @@
           @update:export-name="exportName = $event"
           @update:zip-export="zipExport = $event"
           @export="exportReplay"
+        />
+        <ReplaySharePanel
+          :privacy-mode="sharePrivacyMode"
+          :retention-days="retentionDays"
+          :invite-code="inviteCode"
+          :can-share="Boolean(analysis && sourceBytes)"
+          :busy="shareBusy"
+          :busy-label="shareBusyLabel"
+          :compressed-bytes="compressedBytes"
+          :result="shareResult"
+          :error="shareError"
+          @update:privacy-mode="sharePrivacyMode = $event"
+          @update:retention-days="retentionDays = $event"
+          @update:invite-code="inviteCode = $event"
+          @share="shareReplay"
         />
       </aside>
     </section>
@@ -108,17 +135,29 @@
 </template>
 
 <script setup lang="ts">
-import { computed, onBeforeUnmount, ref, watch } from "vue";
+import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { GithubOne, UpdateRotation } from "@icon-park/vue-next";
 import { zipSync } from "fflate";
 import AnonymizeSettings from "./components/AnonymizeSettings.vue";
+import ReplaySharePanel from "./components/ReplaySharePanel.vue";
 import ReplayOverview from "./components/ReplayOverview.vue";
 import ReplayUploader from "./components/ReplayUploader.vue";
+import SharedReplayView from "./components/SharedReplayView.vue";
 import { anonymizeReplay, inspectReplay } from "./utils/replay";
 import type { ReplayAnalysis } from "./utils/replay";
 import { useRegisterSW } from "virtual:pwa-register/vue";
+import type { ReplayPrivacyMode } from "./utils/replay-container";
+import {
+  capabilityFromHash,
+  decodeSharedReplay,
+  encodeReplayForShare,
+  fetchSharedReplay,
+  uploadReplay,
+} from "./utils/replay-share";
+import type { ShareUploadResult } from "./utils/replay-share";
 
 const file = ref<File | null>(null);
+const sourceBytes = ref<Uint8Array | null>(null);
 const analysis = ref<ReplayAnalysis | null>(null);
 const revealPlayers = ref<number[]>([]);
 const preserveRoomName = ref(false);
@@ -155,6 +194,25 @@ if (!import.meta.env.SSR) {
   });
   updateServiceWorker = registration.updateServiceWorker;
 }
+
+const sharePrivacyMode = ref<"anonymous" | "original">("anonymous");
+const retentionDays = ref<7 | 90>(7);
+const inviteCode = ref("");
+const shareBusy = ref(false);
+const shareBusyLabel = ref("极限压缩中…");
+const compressedBytes = ref<number | null>(null);
+const shareResult = ref<ShareUploadResult | null>(null);
+const shareError = ref("");
+
+const sharedCapability = ref<string | null>(capabilityFromHash());
+const sharedLoading = ref(false);
+const sharedStatus = ref("正在连接安全存储…");
+const sharedError = ref("");
+const sharedAnalysis = ref<ReplayAnalysis | null>(null);
+const sharedBytes = ref<Uint8Array | null>(null);
+const sharedPrivacyMode = ref<ReplayPrivacyMode | null>(null);
+const sharedExpiresAt = ref("");
+let sharedLoadGeneration = 0;
 
 const players = computed(() => analysis.value?.players ?? []);
 const updateHeadline = computed(() => {
@@ -278,6 +336,7 @@ onBeforeUnmount(() => {
 });
 
 async function handleFileSelected(nextFile: File) {
+  resetShareResult();
   busy.value = true;
   notice.value = "正在读取本地回放…";
   lastExport.value = null;
@@ -285,11 +344,13 @@ async function handleFileSelected(nextFile: File) {
     const data = new Uint8Array(await nextFile.arrayBuffer());
     const nextAnalysis = inspectReplay(data);
     file.value = nextFile;
+    sourceBytes.value = data;
     analysis.value = nextAnalysis;
     exportName.value = nextFile.name;
     notice.value = `已解析 ${nextAnalysis.frameCount.toLocaleString()} 个回放帧`;
   } catch (error) {
     file.value = null;
+    sourceBytes.value = null;
     analysis.value = null;
     exportName.value = "";
     notice.value =
@@ -301,11 +362,19 @@ async function handleFileSelected(nextFile: File) {
 }
 
 function clearFile() {
+  resetShareResult();
   file.value = null;
+  sourceBytes.value = null;
   analysis.value = null;
   exportName.value = "";
   lastExport.value = null;
   notice.value = "等待导入回放文件";
+}
+
+function resetShareResult() {
+  compressedBytes.value = null;
+  shareResult.value = null;
+  shareError.value = "";
 }
 
 function toggleRevealPlayer(number: number) {
@@ -317,6 +386,11 @@ function toggleRevealPlayer(number: number) {
 function setAllAnonymous() {
   revealPlayers.value = [];
 }
+
+watch(
+  [sharePrivacyMode, retentionDays, inviteCode, revealPlayers, preserveRoomName],
+  resetShareResult,
+);
 
 function normalizeExportName(value: string, fallback: string) {
   const candidate = value.trim() || fallback.trim() || "replay";
@@ -362,6 +436,106 @@ function exportReplay() {
     busy.value = false;
   }
 }
+
+async function shareReplay() {
+  if (!analysis.value || !sourceBytes.value || shareBusy.value) return;
+  shareBusy.value = true;
+  shareError.value = "";
+  shareResult.value = null;
+  compressedBytes.value = null;
+  shareBusyLabel.value = "极限压缩中…";
+  try {
+    let replayBytes = sourceBytes.value;
+    let privacyMode: ReplayPrivacyMode = "original";
+    if (sharePrivacyMode.value === "anonymous") {
+      replayBytes = anonymizeReplay(
+        analysis.value,
+        new Set(revealPlayers.value),
+        preserveRoomName.value,
+      ).bytes;
+      privacyMode =
+        revealPlayers.value.length === 0 && !preserveRoomName.value
+          ? "anonymous"
+          : "custom";
+    }
+
+    const container = await encodeReplayForShare(replayBytes, privacyMode);
+    compressedBytes.value = container.length;
+    shareBusyLabel.value = "安全上传中…";
+    shareResult.value = await uploadReplay(
+      container,
+      retentionDays.value,
+      inviteCode.value,
+    );
+    notice.value = "分享链接已生成";
+  } catch (error) {
+    shareError.value =
+      error instanceof Error ? error.message : "无法生成分享链接";
+  } finally {
+    shareBusy.value = false;
+  }
+}
+
+async function loadSharedReplay(capability: string) {
+  const generation = ++sharedLoadGeneration;
+  sharedLoading.value = true;
+  sharedError.value = "";
+  sharedAnalysis.value = null;
+  sharedBytes.value = null;
+  sharedStatus.value = "正在连接安全存储…";
+  try {
+    const downloaded = await fetchSharedReplay(capability);
+    if (generation !== sharedLoadGeneration) return;
+    sharedExpiresAt.value = downloaded.expiresAt;
+    sharedStatus.value = "正在本机解压并校验…";
+    const decoded = await decodeSharedReplay(downloaded.bytes);
+    if (generation !== sharedLoadGeneration) return;
+    sharedPrivacyMode.value = decoded.privacyMode;
+    sharedBytes.value = decoded.bytes;
+    sharedAnalysis.value = inspectReplay(decoded.bytes);
+  } catch (error) {
+    if (generation !== sharedLoadGeneration) return;
+    sharedError.value =
+      error instanceof Error ? error.message : "无法读取这个分享回放";
+  } finally {
+    if (generation === sharedLoadGeneration) sharedLoading.value = false;
+  }
+}
+
+function downloadSharedReplay() {
+  if (!sharedBytes.value || !sharedCapability.value) return;
+  const downloadBytes = sharedBytes.value.slice().buffer;
+  const url = URL.createObjectURL(
+    new Blob([downloadBytes], { type: "application/octet-stream" }),
+  );
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `jxpd-replay-${sharedCapability.value.slice(-8)}`;
+  link.click();
+  URL.revokeObjectURL(url);
+}
+
+function leaveSharedReplay() {
+  sharedLoadGeneration += 1;
+  history.replaceState(null, "", `${location.pathname}${location.search}`);
+  sharedCapability.value = null;
+  sharedAnalysis.value = null;
+  sharedBytes.value = null;
+  sharedError.value = "";
+}
+
+function onHashChange() {
+  const nextCapability = capabilityFromHash();
+  sharedCapability.value = nextCapability;
+  if (nextCapability) void loadSharedReplay(nextCapability);
+}
+
+onMounted(() => {
+  window.addEventListener("hashchange", onHashChange);
+  if (sharedCapability.value) void loadSharedReplay(sharedCapability.value);
+});
+
+onBeforeUnmount(() => window.removeEventListener("hashchange", onHashChange));
 </script>
 
 <style scoped>

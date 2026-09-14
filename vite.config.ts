@@ -20,7 +20,7 @@ export default defineConfig({
       manifest: {
         name: '吉星派对回放匿名化',
         short_name: '回放匿名化',
-        description: '在浏览器本地处理吉星派对回放文件。',
+        description: '在浏览器本地处理并安全分享吉星派对回放文件。',
         theme_color: '#0f0a1d',
         background_color: '#0f0a1d',
         display: 'standalone',
