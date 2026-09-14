@@ -19,6 +19,7 @@
     "src/**/*.d.ts",
     "src/**/*.vue",
     "cloud-functions/**/*.ts",
+    "dev/**/*.ts",
     "tests/**/*.ts",
     "vite.config.ts"
   ],

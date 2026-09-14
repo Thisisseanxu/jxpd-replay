@@ -5,6 +5,7 @@ import {
 } from "../../_shared/constants";
 import type { FunctionContext } from "../../_shared/constants";
 import { createCapability } from "../../_shared/capability";
+import { isBlobCapacityError } from "../../_shared/blob-errors";
 import {
   deviceIdentity,
   quotaHash,
@@ -112,7 +113,7 @@ export async function replayUploadResponse(
     const origin = new URL(request.url).origin;
     return jsonResponse(
       {
-        shareUrl: `${origin}/#/r/${capability.token}`,
+        shareUrl: `${origin}/share#/r/${capability.token}`,
         expiresAt: new Date(capability.expiresAt * 1000).toISOString(),
         originalBytes: validated.originalBytes,
         storedBytes: validated.storedBytes,
@@ -122,6 +123,13 @@ export async function replayUploadResponse(
       device.setCookie ? { "Set-Cookie": device.setCookie } : {},
     );
   } catch (error) {
+    if (isBlobCapacityError(error)) {
+      return jsonResponse(
+        { error: "网站过于繁忙，请之后再来" },
+        503,
+        { "Retry-After": "3600" },
+      );
+    }
     return errorResponse(error);
   }
 }

@@ -92,16 +92,28 @@
       </label>
     </div>
 
-    <button
-      type="button"
-      class="export-button"
-      :disabled="!canExport || busy"
-      @click="$emit('export')"
-    >
-      <ArrowDown size="18" fill="currentColor" />
-      {{ busy ? "处理中…" : "导出匿名副本" }}
-      <Right size="17" fill="currentColor" />
-    </button>
+    <div class="action-row">
+      <button
+        type="button"
+        class="share-circle-button"
+        :disabled="!canShare || busy"
+        aria-label="使用匿名副本创建分享"
+        title="使用匿名副本创建分享"
+        @click="$emit('share')"
+      >
+        <ShareOne size="18" fill="currentColor" />
+      </button>
+      <button
+        type="button"
+        class="export-button"
+        :disabled="!canExport || busy"
+        @click="$emit('export')"
+      >
+        <ArrowDown size="18" fill="currentColor" />
+        {{ busy ? "处理中…" : "导出匿名副本" }}
+        <Right size="17" fill="currentColor" />
+      </button>
+    </div>
     <div v-if="lastExport" class="export-success">
       <Check size="15" fill="currentColor" /> 已生成 {{ lastExport }}
     </div>
@@ -110,7 +122,14 @@
 
 <script setup lang="ts">
 import { computed } from "vue";
-import { ArrowDown, Check, Lock, Right, Shield } from "@icon-park/vue-next";
+import {
+  ArrowDown,
+  Check,
+  Lock,
+  Right,
+  ShareOne,
+  Shield,
+} from "@icon-park/vue-next";
 import type { PlayerRecord } from "../utils/replay";
 
 const props = defineProps<{
@@ -121,6 +140,7 @@ const props = defineProps<{
   zipExport: boolean;
   busy: boolean;
   canExport: boolean;
+  canShare: boolean;
   lastExport: string | null;
 }>();
 
@@ -131,6 +151,7 @@ const emit = defineEmits<{
   "update:export-name": [value: string];
   "update:zip-export": [value: boolean];
   export: [];
+  share: [];
 }>();
 
 const selectedPlayers = computed(() =>
@@ -401,6 +422,37 @@ function onZipExportChange(event: Event) {
   font-size: 13px;
   font-weight: 800;
   transition: 0.18s ease;
+}
+.action-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  margin-top: 21px;
+}
+.share-circle-button {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 46px;
+  height: 46px;
+  border: 1px solid rgba(118, 226, 186, 0.35);
+  border-radius: 50%;
+  color: var(--green);
+  background: rgba(118, 226, 186, 0.09);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  transition: 0.18s ease;
+}
+.share-circle-button:hover:not(:disabled) {
+  border-color: var(--green);
+  background: rgba(118, 226, 186, 0.17);
+  transform: translateY(-1px);
+}
+.share-circle-button:disabled {
+  box-shadow: none;
+}
+.action-row .export-button {
+  flex: 1;
+  margin-top: 0;
 }
 .export-button:hover:not(:disabled) {
   transform: translateY(-1px);

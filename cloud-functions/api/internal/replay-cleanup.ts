@@ -9,6 +9,7 @@ import {
 } from "../../_shared/constants";
 import type { FunctionContext } from "../../_shared/constants";
 import { errorResponse, jsonResponse } from "../../_shared/http";
+import { shanghaiDay } from "../../_shared/identity";
 
 const MAX_DELETES_PER_RUN = 2_000;
 const DELETE_BATCH_SIZE = 20;
@@ -71,7 +72,7 @@ export async function cleanupExpired(
 }
 
 export async function onRequestPost(_context: FunctionContext) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = shanghaiDay();
   const control = getStore(CONTROL_STORE_NAME);
   const lockKey = `cleanup-lock/${today}`;
   let completed = false;

@@ -1,11 +1,12 @@
-export const REPLAY_CONTAINER_MAGIC = "JXRS";
+export const REPLAY_CONTAINER_MAGIC = 'JXRS';
 export const REPLAY_CONTAINER_VERSION = 1;
-export const REPLAY_CODEC_BROTLI = 1;
-export const REPLAY_CONTAINER_HEADER_BYTES = 43;
-export const MAX_REPLAY_CONTAINER_BYTES = 80 * 1024;
+export const REPLAY_CODEC_PACKED_BROTLI = 1;
+export const REPLAY_CONTAINER_HEADER_BYTES = 47;
+export const MAX_REPLAY_CONTAINER_BYTES = 256 * 1024;
 export const MAX_REPLAY_OUTPUT_BYTES = 8 * 1024 * 1024;
+export const MAX_REPLAY_PACKED_BYTES = 9 * 1024 * 1024;
 
-export type ReplayPrivacyMode = "original" | "anonymous" | "custom";
+export type ReplayPrivacyMode = 'original' | 'anonymous' | 'custom';
 
 const privacyCode: Record<ReplayPrivacyMode, number> = {
   original: 0,
@@ -14,14 +15,15 @@ const privacyCode: Record<ReplayPrivacyMode, number> = {
 };
 
 const privacyMode: Record<number, ReplayPrivacyMode> = {
-  0: "original",
-  1: "anonymous",
-  2: "custom",
+  0: 'original',
+  1: 'anonymous',
+  2: 'custom',
 };
 
 export type ReplayContainer = {
   privacyMode: ReplayPrivacyMode;
   originalLength: number;
+  packedLength: number;
   digest: Uint8Array;
   compressed: Uint8Array;
 };
@@ -40,32 +42,38 @@ export async function sha256(bytes: Uint8Array) {
     bytes.byteOffset,
     bytes.byteOffset + bytes.byteLength,
   ) as ArrayBuffer;
-  return new Uint8Array(await crypto.subtle.digest("SHA-256", input));
+  return new Uint8Array(await crypto.subtle.digest('SHA-256', input));
 }
 
 export async function createReplayContainer(
   original: Uint8Array,
+  packed: Uint8Array,
   compressed: Uint8Array,
   mode: ReplayPrivacyMode,
 ) {
-  if (original.length > MAX_REPLAY_OUTPUT_BYTES) {
-    throw new Error("回放解压后超过 8 MiB 安全上限");
+  if (original.length === 0 || original.length > MAX_REPLAY_OUTPUT_BYTES) {
+    throw new Error('回放原始大小必须在 1 B 到 8 MiB 之间');
   }
+  if (packed.length === 0 || packed.length > MAX_REPLAY_PACKED_BYTES) {
+    throw new Error('回放预处理数据大小无效');
+  }
+  if (compressed.length === 0) throw new Error('Brotli 数据为空');
 
   const output = new Uint8Array(
     REPLAY_CONTAINER_HEADER_BYTES + compressed.length,
   );
   output.set(new TextEncoder().encode(REPLAY_CONTAINER_MAGIC), 0);
   output[4] = REPLAY_CONTAINER_VERSION;
-  output[5] = REPLAY_CODEC_BROTLI;
+  output[5] = REPLAY_CODEC_PACKED_BROTLI;
   output[6] = privacyCode[mode];
   new DataView(output.buffer).setUint32(7, original.length, false);
-  output.set(await sha256(original), 11);
+  new DataView(output.buffer).setUint32(11, packed.length, false);
+  output.set(await sha256(original), 15);
   output.set(compressed, REPLAY_CONTAINER_HEADER_BYTES);
 
   if (output.length > MAX_REPLAY_CONTAINER_BYTES) {
     throw new Error(
-      `压缩后为 ${(output.length / 1024).toFixed(1)} KiB，超过 80 KiB 分享上限`,
+      `压缩后为 ${(output.length / 1024).toFixed(1)} KiB，超过 256 KiB 分享上限`,
     );
   }
   return output;
@@ -76,36 +84,42 @@ export function parseReplayContainer(bytes: Uint8Array): ReplayContainer {
     bytes.length < REPLAY_CONTAINER_HEADER_BYTES + 1 ||
     bytes.length > MAX_REPLAY_CONTAINER_BYTES
   ) {
-    throw new Error("分享数据大小无效");
+    throw new Error('分享数据大小无效');
   }
 
   const magic = new TextDecoder().decode(bytes.subarray(0, 4));
-  if (magic !== REPLAY_CONTAINER_MAGIC) throw new Error("不是 JXRS 回放数据");
+  if (magic !== REPLAY_CONTAINER_MAGIC) throw new Error('不是 JXRS 回放数据');
   if (bytes[4] !== REPLAY_CONTAINER_VERSION) {
     throw new Error(`暂不支持 JXRS v${bytes[4]}`);
   }
-  if (bytes[5] !== REPLAY_CODEC_BROTLI) {
-    throw new Error("暂不支持该回放压缩算法");
+  if (bytes[5] !== REPLAY_CODEC_PACKED_BROTLI) {
+    throw new Error('暂不支持该回放压缩算法');
   }
 
   const mode = privacyMode[bytes[6]];
-  if (!mode) throw new Error("回放隐私模式无效");
+  if (!mode) throw new Error('回放隐私模式无效');
   const originalLength = new DataView(
     bytes.buffer,
     bytes.byteOffset,
     bytes.byteLength,
   ).getUint32(7, false);
-  if (
-    originalLength === 0 ||
-    originalLength > MAX_REPLAY_OUTPUT_BYTES
-  ) {
-    throw new Error("回放原始大小无效");
+  if (originalLength === 0 || originalLength > MAX_REPLAY_OUTPUT_BYTES) {
+    throw new Error('回放原始大小无效');
+  }
+  const packedLength = new DataView(
+    bytes.buffer,
+    bytes.byteOffset,
+    bytes.byteLength,
+  ).getUint32(11, false);
+  if (packedLength === 0 || packedLength > MAX_REPLAY_PACKED_BYTES) {
+    throw new Error('回放预处理数据大小无效');
   }
 
   return {
     privacyMode: mode,
     originalLength,
-    digest: bytes.slice(11, REPLAY_CONTAINER_HEADER_BYTES),
+    packedLength,
+    digest: bytes.slice(15, REPLAY_CONTAINER_HEADER_BYTES),
     compressed: bytes.slice(REPLAY_CONTAINER_HEADER_BYTES),
   };
 }
@@ -115,9 +129,9 @@ export async function verifyReplayContainerOutput(
   output: Uint8Array,
 ) {
   if (output.length !== container.originalLength) {
-    throw new Error("回放解压后的大小不匹配");
+    throw new Error('回放解压后的大小不匹配');
   }
   if (!equalBytes(await sha256(output), container.digest)) {
-    throw new Error("回放校验失败，分享数据可能已损坏");
+    throw new Error('回放校验失败，分享数据可能已损坏');
   }
 }

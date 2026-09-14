@@ -26,6 +26,8 @@ export type ReplayAnalysis = {
   commandCount: number
 }
 
+export type ReplayPrivacyAssessment = 'original' | 'anonymous' | 'custom'
+
 type TransformContext = {
   players: Map<string, PlayerRecord>
   playerIds: Map<string, bigint>
@@ -256,6 +258,43 @@ function firstRoomName(frames: ReplayFrame[]) {
   return ''
 }
 
+function hasAnonymousReplayMarker(frames: ReplayFrame[]) {
+  return frames.some((frame) => {
+    if (frame.commandId !== 1016) return false
+    try {
+      const marker = getField(parseFields(frame.payload), 11)
+      return marker?.wireType === 2 && asText(marker.value).startsWith('anon-')
+    } catch {
+      return false
+    }
+  })
+}
+
+const firstAnonymousPlayerId = 992331n
+
+function hasAnonymousPlayerIdentity(analysis: ReplayAnalysis) {
+  return (
+    analysis.players.length > 0 &&
+    analysis.players.every(
+      (player, index) =>
+        player.id === firstAnonymousPlayerId + BigInt(index) &&
+        player.originalName === `Player${index + 1}`,
+    )
+  )
+}
+
+export function detectReplayPrivacy(analysis: ReplayAnalysis): ReplayPrivacyAssessment {
+  const marker = hasAnonymousReplayMarker(analysis.frames)
+  if (marker || hasAnonymousPlayerIdentity(analysis)) {
+    const hasCustomIdentity = analysis.players.some(
+      (player, index) => player.originalName !== `Player${index + 1}`,
+    )
+    const hasPreservedRoomName = Boolean(analysis.roomName && analysis.roomName !== 'match')
+    return hasCustomIdentity || hasPreservedRoomName ? 'custom' : 'anonymous'
+  }
+  return 'original'
+}
+
 export function inspectReplay(data: Uint8Array): ReplayAnalysis {
   const frames = readReplay(data)
   const players = new Map<string, PlayerRecord>()
@@ -285,11 +324,10 @@ function withFixed64(field: WireField, value: bigint): WireField {
 }
 
 function anonymousPlayerIds(players: PlayerRecord[]) {
-  const firstAnonymousId = 992331n
   return new Map(
     players.map((player, index) => [
       player.id.toString(),
-      firstAnonymousId + BigInt(index),
+      firstAnonymousPlayerId + BigInt(index),
     ]),
   )
 }

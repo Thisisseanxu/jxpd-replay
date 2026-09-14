@@ -1,28 +1,6 @@
 <template>
   <section class="panel share-panel">
-    <div class="panel-kicker"><span class="step-dot">04</span> 分享回放</div>
-
-    <div class="share-block">
-      <div class="share-label">分享内容</div>
-      <div class="choice-grid">
-        <button
-          type="button"
-          :class="{ selected: privacyMode === 'anonymous' }"
-          @click="$emit('update:privacy-mode', 'anonymous')"
-        >
-          <Shield size="18" fill="currentColor" />
-          <span><b>使用匿名设置</b><small>先处理昵称、房间和账号字段</small></span>
-        </button>
-        <button
-          type="button"
-          :class="{ selected: privacyMode === 'original' }"
-          @click="$emit('update:privacy-mode', 'original')"
-        >
-          <People size="18" fill="currentColor" />
-          <span><b>保留原始内容</b><small>链接中可能包含玩家身份信息</small></span>
-        </button>
-      </div>
-    </div>
+    <div class="panel-kicker"><span class="step-dot">02</span> 创建分享</div>
 
     <div class="share-block">
       <div class="share-label">保存时间</div>
@@ -32,14 +10,14 @@
           :class="{ selected: retentionDays === 7 }"
           @click="$emit('update:retention-days', 7)"
         >
-          7 天 <small>无需注册</small>
+          7 天 <small>无需邀请码</small>
         </button>
         <button
           type="button"
           :class="{ selected: retentionDays === 90 }"
           @click="$emit('update:retention-days', 90)"
         >
-          90 天 <small>需要邀请码</small>
+          90 天 <small>需要激活码</small>
         </button>
       </div>
       <input
@@ -48,8 +26,8 @@
         type="password"
         autocomplete="off"
         :value="inviteCode"
-        placeholder="输入长期保存邀请码"
-        aria-label="长期保存邀请码"
+        placeholder="输入长期保存激活码"
+        aria-label="长期保存激活码"
         @input="onInviteInput"
       />
     </div>
@@ -57,16 +35,18 @@
     <button
       type="button"
       class="share-button"
-      :disabled="!canShare || busy || (retentionDays === 90 && !inviteCode.trim())"
+      :disabled="
+        !canShare || busy || (retentionDays === 90 && !inviteCode.trim())
+      "
       @click="$emit('share')"
     >
       <ShareOne size="18" fill="currentColor" />
-      {{ busy ? busyLabel : "生成分享链接" }}
+      {{ busy ? busyLabel : '生成分享链接' }}
     </button>
 
     <div v-if="compressedBytes !== null" class="compression-result">
       <Check size="15" fill="currentColor" />
-      已压缩至 {{ formatBytes(compressedBytes) }}，小于 80 KiB
+      已压缩至 {{ formatBytes(compressedBytes) }}，小于 256 KiB
     </div>
     <div v-if="error" class="share-error">{{ error }}</div>
 
@@ -78,7 +58,8 @@
       <div class="link-row">
         <input :value="result.shareUrl" readonly aria-label="分享链接" />
         <button type="button" @click="copyLink">
-          <Copy size="15" fill="currentColor" /> {{ copied ? "已复制" : "复制" }}
+          <Copy size="15" fill="currentColor" />
+          {{ copied ? '已复制' : '复制' }}
         </button>
       </div>
       <p>任何拿到链接的人都能下载，请只发给可信对象。</p>
@@ -87,20 +68,12 @@
 </template>
 
 <script setup lang="ts">
-import { ref } from "vue";
-import {
-  Check,
-  Copy,
-  LinkOne,
-  People,
-  ShareOne,
-  Shield,
-} from "@icon-park/vue-next";
-import { formatBytes } from "../utils/replay";
-import type { ShareUploadResult } from "../utils/replay-share";
+import { ref } from 'vue';
+import { Check, Copy, LinkOne, ShareOne } from '@icon-park/vue-next';
+import { formatBytes } from '../utils/replay';
+import type { ShareUploadResult } from '../utils/replay-share';
 
 const props = defineProps<{
-  privacyMode: "anonymous" | "original";
   retentionDays: 7 | 90;
   inviteCode: string;
   canShare: boolean;
@@ -112,16 +85,15 @@ const props = defineProps<{
 }>();
 
 const emit = defineEmits<{
-  "update:privacy-mode": [value: "anonymous" | "original"];
-  "update:retention-days": [value: 7 | 90];
-  "update:invite-code": [value: string];
+  'update:retention-days': [value: 7 | 90];
+  'update:invite-code': [value: string];
   share: [];
 }>();
 
 const copied = ref(false);
 
 function onInviteInput(event: Event) {
-  emit("update:invite-code", (event.target as HTMLInputElement).value);
+  emit('update:invite-code', (event.target as HTMLInputElement).value);
 }
 
 async function copyLink() {
@@ -132,11 +104,11 @@ async function copyLink() {
 }
 
 function formatExpiry(value: string) {
-  return new Intl.DateTimeFormat("zh-CN", {
-    month: "short",
-    day: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
+  return new Intl.DateTimeFormat('zh-CN', {
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
   }).format(new Date(value));
 }
 </script>
@@ -153,40 +125,6 @@ function formatExpiry(value: string) {
   color: var(--ink);
   font-size: 14px;
   font-weight: 700;
-}
-.choice-grid {
-  display: grid;
-  gap: 8px;
-}
-.choice-grid button {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  width: 100%;
-  padding: 11px 12px;
-  border: 1px solid var(--line);
-  border-radius: 11px;
-  color: var(--muted);
-  background: rgba(9, 5, 21, 0.28);
-  text-align: left;
-}
-.choice-grid button.selected {
-  border-color: rgba(118, 226, 186, 0.48);
-  color: var(--green);
-  background: rgba(118, 226, 186, 0.07);
-}
-.choice-grid span {
-  display: grid;
-  gap: 3px;
-}
-.choice-grid b {
-  color: var(--ink);
-  font-size: 13px;
-}
-.choice-grid small,
-.retention-row small {
-  color: var(--muted);
-  font-size: 12px;
 }
 .retention-row {
   display: grid;
@@ -206,6 +144,10 @@ function formatExpiry(value: string) {
 .retention-row button.selected {
   border-color: rgba(244, 198, 108, 0.5);
   background: rgba(244, 198, 108, 0.08);
+}
+.retention-row small {
+  color: var(--muted);
+  font-size: 12px;
 }
 .invite-input,
 .link-row input {
@@ -291,7 +233,7 @@ function formatExpiry(value: string) {
   margin-top: 11px;
 }
 .link-row input {
-  font-family: "Manrope", monospace;
+  font-family: 'Manrope', monospace;
   font-size: 11px;
 }
 .link-row button {

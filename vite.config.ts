@@ -1,12 +1,22 @@
+import { fileURLToPath, URL } from 'node:url'
 import vue from '@vitejs/plugin-vue'
 import vueDevTools from 'vite-plugin-vue-devtools'
 import { VitePWA } from 'vite-plugin-pwa'
-import { defineConfig } from 'vite'
+import { defineConfig, loadEnv } from 'vite'
 import pkg from './package.json' with { type: 'json' }
+import { localReplayApiPlugin } from './dev/local-replay-api'
 
-export default defineConfig({
-  base: './',
+export default defineConfig(({ mode }) => ({
+  base: '/',
   plugins: [
+    ...(mode === 'localdev'
+      ? [
+          localReplayApiPlugin({
+            rootDirectory: process.cwd(),
+            env: loadEnv(mode, process.cwd(), ''),
+          }),
+        ]
+      : []),
     vueDevTools({
       componentInspector: true,
     }),
@@ -25,8 +35,8 @@ export default defineConfig({
         background_color: '#0f0a1d',
         display: 'standalone',
         lang: 'zh-CN',
-        scope: './',
-        start_url: './',
+        scope: '/',
+        start_url: '/',
         icons: [
           {
             src: 'pwa-icon-192.webp',
@@ -52,8 +62,18 @@ export default defineConfig({
   ],
   build: {
     target: 'es2020',
+    rollupOptions: {
+      input: {
+        app: fileURLToPath(new URL('./index.html', import.meta.url)),
+        spa: fileURLToPath(new URL('./spa.html', import.meta.url)),
+      },
+    },
+  },
+  ssgOptions: {
+    dirStyle: 'nested',
+    formatting: 'none',
   },
   define: {
     __APP_VERSION__: JSON.stringify(pkg.version),
   },
-})
+}))

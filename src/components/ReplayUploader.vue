@@ -1,6 +1,6 @@
 <template>
   <section class="panel upload-panel">
-    <div class="panel-kicker"><span class="step-dot">01</span> 导入回放</div>
+    <div class="panel-kicker"><span class="step-dot">01</span> {{ kicker }}</div>
     <input ref="inputRef" type="file" class="sr-only" @change="onFileChange" />
 
     <div
@@ -46,11 +46,19 @@
     >
       <div class="upload-icon"><Upload size="24" fill="currentColor" /></div>
       <strong>拖入回放文件，或点击选择</strong>
-      <span>请先导出回放文件</span>
+      <span>{{ emptyHint }}</span>
       <div class="browse-hint">
         <FolderOpen size="14" fill="currentColor" /> 选择文件
       </div>
     </button>
+
+    <div class="panel-footer">
+      <span class="status-line">
+        <span class="status-light" :class="{ 'is-busy': busy }" />
+        {{ busy ? "正在处理…" : notice }}
+      </span>
+      <span class="format-hint">JXPD Replay</span>
+    </div>
   </section>
 </template>
 
@@ -60,13 +68,18 @@ import { FileText, FolderOpen, Refresh, Upload } from "@icon-park/vue-next";
 import { formatBytes } from "../utils/replay";
 import type { ReplayAnalysis } from "../utils/replay";
 
-defineProps<{
+withDefaults(defineProps<{
   file: File | null;
   analysis: ReplayAnalysis | null;
   busy: boolean;
   notice: string;
   dragging: boolean;
-}>();
+  kicker?: string;
+  emptyHint?: string;
+}>(), {
+  kicker: "导入回放",
+  emptyHint: "请先导出回放文件",
+});
 
 const emit = defineEmits<{
   "file-selected": [file: File];
