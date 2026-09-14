@@ -2,14 +2,13 @@ import {
   getStore,
   PreconditionFailedError,
   type Store,
-} from "@edgeone/pages-blob";
-import {
-  CONTROL_STORE_NAME,
-  DATA_STORE_NAME,
-} from "../../_shared/constants";
-import type { FunctionContext } from "../../_shared/constants";
-import { errorResponse, jsonResponse } from "../../_shared/http";
-import { shanghaiDay } from "../../_shared/identity";
+} from '@edgeone/pages-blob';
+import { CONTROL_STORE_NAME, DATA_STORE_NAME } from '../../_shared/constants';
+import type { FunctionContext } from '../../_shared/constants';
+import { errorResponse, jsonResponse } from '../../_shared/http';
+import { shanghaiDay } from '../../_shared/identity';
+import { isReplayRecord, replayDedupKey } from '../../_shared/replay-record';
+import { isShareCodeRecord, shareCodeKey } from '../../_shared/share-code';
 
 const MAX_DELETES_PER_RUN = 2_000;
 const DELETE_BATCH_SIZE = 20;
@@ -25,7 +24,7 @@ async function deletePrefix(
       prefix,
       limit: Math.min(200, budget.remaining),
       paginate: false,
-      consistency: "strong",
+      consistency: 'strong',
     });
     if (!blobs.length) break;
     for (let index = 0; index < blobs.length; index += DELETE_BATCH_SIZE) {
@@ -39,6 +38,107 @@ async function deletePrefix(
   return deleted;
 }
 
+async function deleteExpiredLocks(
+  store: Store,
+  today: string,
+  budget: { remaining: number },
+) {
+  if (budget.remaining <= 0) return 0;
+  const { blobs } = await store.list({
+    prefix: 'cleanup-lock/',
+    consistency: 'strong',
+  });
+  const expiredKeys = blobs
+    .map((blob) => blob.key)
+    .filter((key) => {
+      const match = /^cleanup-lock\/(\d{4}-\d{2}-\d{2})$/.exec(key);
+      return Boolean(match && match[1] < today);
+    })
+    .sort()
+    .slice(0, budget.remaining);
+
+  for (let index = 0; index < expiredKeys.length; index += DELETE_BATCH_SIZE) {
+    const batch = expiredKeys.slice(index, index + DELETE_BATCH_SIZE);
+    await Promise.all(batch.map((key) => store.delete(key)));
+    budget.remaining -= batch.length;
+  }
+  return expiredKeys.length;
+}
+
+async function deleteExpiredShareCodes(
+  store: Store,
+  nowSeconds: number,
+  budget: { remaining: number },
+) {
+  if (budget.remaining <= 0) return 0;
+  const { blobs } = await store.list({
+    prefix: 'share-code/v1/',
+    consistency: 'strong',
+  });
+  const expiredKeys: string[] = [];
+  for (const blob of blobs) {
+    if (expiredKeys.length >= budget.remaining) break;
+    const record = await store.get(blob.key, {
+      type: 'json',
+      consistency: 'strong',
+    });
+    if (!isShareCodeRecord(record) || record.expiresAt <= nowSeconds) {
+      expiredKeys.push(blob.key);
+    }
+  }
+
+  for (let index = 0; index < expiredKeys.length; index += DELETE_BATCH_SIZE) {
+    const batch = expiredKeys.slice(index, index + DELETE_BATCH_SIZE);
+    await Promise.all(batch.map((key) => store.delete(key)));
+    budget.remaining -= batch.length;
+  }
+  return expiredKeys.length;
+}
+
+async function deleteExpiredReplayRecords(
+  store: Store,
+  nowSeconds: number,
+  budget: { remaining: number },
+) {
+  if (budget.remaining <= 0) return 0;
+  const { blobs } = await store.list({
+    prefix: 'replay-capability/v1/',
+    consistency: 'strong',
+  });
+  let deleted = 0;
+  for (const blob of blobs) {
+    if (budget.remaining <= 0) break;
+    const rawRecord = await store.get(blob.key, {
+      type: 'json',
+      consistency: 'strong',
+    });
+    if (isReplayRecord(rawRecord) && rawRecord.expiresAt > nowSeconds) {
+      continue;
+    }
+
+    const keys = isReplayRecord(rawRecord)
+      ? [
+          replayDedupKey(rawRecord.digest),
+          shareCodeKey(rawRecord.shareCode),
+          blob.key,
+        ]
+      : [blob.key];
+    const selectedKeys = keys.slice(0, budget.remaining);
+    for (
+      let index = 0;
+      index < selectedKeys.length;
+      index += DELETE_BATCH_SIZE
+    ) {
+      const batch = selectedKeys.slice(index, index + DELETE_BATCH_SIZE);
+      await Promise.all(batch.map((key) => store.delete(key)));
+      deleted += batch.length;
+      budget.remaining -= batch.length;
+    }
+    if (selectedKeys.length < keys.length) break;
+  }
+  return deleted;
+}
+
 export async function cleanupExpired(
   data: Store,
   control: Store,
@@ -47,9 +147,9 @@ export async function cleanupExpired(
 ) {
   const budget = { remaining: maximumDeletes };
   const { directories } = await data.list({
-    prefix: "v1/",
+    prefix: 'v1/',
     directories: true,
-    consistency: "strong",
+    consistency: 'strong',
   });
   let deleted = 0;
   for (const directory of directories.sort()) {
@@ -59,15 +159,26 @@ export async function cleanupExpired(
   }
 
   const { directories: quotaDates } = await control.list({
-    prefix: "quota/",
+    prefix: 'quota/',
     directories: true,
-    consistency: "strong",
+    consistency: 'strong',
   });
   for (const directory of quotaDates.sort()) {
     const match = /^quota\/(\d{4}-\d{2}-\d{2})\/$/.exec(directory);
     if (!match || match[1] >= today || budget.remaining <= 0) continue;
     deleted += await deletePrefix(control, directory, budget);
   }
+  deleted += await deleteExpiredLocks(control, today, budget);
+  deleted += await deleteExpiredReplayRecords(
+    control,
+    Math.floor(Date.now() / 1000),
+    budget,
+  );
+  deleted += await deleteExpiredShareCodes(
+    control,
+    Math.floor(Date.now() / 1000),
+    budget,
+  );
   return { deleted, complete: budget.remaining > 0 };
 }
 
@@ -78,7 +189,7 @@ export async function onRequestPost(_context: FunctionContext) {
   let completed = false;
   try {
     try {
-      await control.set(lockKey, "running", {
+      await control.set(lockKey, 'running', {
         onlyIfNew: true,
         cacheControl: null,
       });

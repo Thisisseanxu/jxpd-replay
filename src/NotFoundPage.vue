@@ -27,20 +27,19 @@
         <span class="signal-dot signal-dot-end" />
       </div>
 
-      <p class="not-found-kicker">回放记录未找到</p>
+      <p class="not-found-kicker">找不到该页面</p>
       <div class="not-found-code" aria-hidden="true">
         <span>4</span><span class="code-zero">0</span><span>4</span>
       </div>
-      <h1 id="not-found-title">这页回放暂时没接上</h1>
+      <h1 id="not-found-title">您访问的地址不存在</h1>
       <p class="not-found-description">
-        你访问的地址不存在，或者这段分享链接已经失效。回到工具，继续处理你的回放吧。
+        请检查拼写，或回到主页继续处理你的回放！
       </p>
 
       <div class="not-found-actions">
-        <RouterLink class="primary-action" to="/"
-          >返回匿名化工具 <span aria-hidden="true">→</span></RouterLink
+        <a class="primary-action" href="/"
+          >返回主页 <span aria-hidden="true">→</span></a
         >
-        <RouterLink class="secondary-action" to="/share">前往分享页</RouterLink>
       </div>
     </section>
 
@@ -66,8 +65,16 @@ const logoUrl = `${import.meta.env.BASE_URL}logo.webp`;
   overflow: hidden;
   padding: 0 clamp(20px, 5vw, 76px) 28px;
   background:
-    radial-gradient(ellipse at 50% 42%, rgba(104, 47, 190, 0.2), transparent 42%),
-    radial-gradient(ellipse at 48% -12%, rgba(129, 58, 219, 0.27), transparent 46%),
+    radial-gradient(
+      ellipse at 50% 42%,
+      rgba(104, 47, 190, 0.2),
+      transparent 42%
+    ),
+    radial-gradient(
+      ellipse at 48% -12%,
+      rgba(129, 58, 219, 0.27),
+      transparent 46%
+    ),
     linear-gradient(135deg, #0d0819 0%, #120b23 48%, #0e091b 100%);
 }
 .not-found-shell::before {
@@ -77,7 +84,10 @@ const logoUrl = `${import.meta.env.BASE_URL}logo.webp`;
   inset: 0;
   opacity: 0.27;
   pointer-events: none;
-  background-image: radial-gradient(rgba(231, 202, 255, 0.54) 0.65px, transparent 0.8px);
+  background-image: radial-gradient(
+    rgba(231, 202, 255, 0.54) 0.65px,
+    transparent 0.8px
+  );
   background-size: 42px 42px;
   mask-image: linear-gradient(to bottom, black, transparent 84%);
 }
@@ -198,7 +208,11 @@ const logoUrl = `${import.meta.env.BASE_URL}logo.webp`;
 .signal-track {
   height: 1px;
   flex: 1;
-  background: linear-gradient(90deg, rgba(244, 198, 108, 0.64), rgba(208, 165, 255, 0.62));
+  background: linear-gradient(
+    90deg,
+    rgba(244, 198, 108, 0.64),
+    rgba(208, 165, 255, 0.62)
+  );
 }
 .not-found-kicker {
   margin: 0;

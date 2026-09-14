@@ -1,10 +1,10 @@
-import { createHash, randomBytes } from "node:crypto";
-import { HttpError } from "./http";
+import { createHash, randomBytes } from 'node:crypto';
+import { HttpError } from './http';
 
 const TOKEN_BYTES = 29;
 
 function base64url(bytes: Uint8Array) {
-  return Buffer.from(bytes).toString("base64url");
+  return Buffer.from(bytes).toString('base64url');
 }
 
 export function dateKey(timestampSeconds: number) {
@@ -23,17 +23,17 @@ export function createCapability(retentionDays: number) {
 
 export function parseCapability(token: string) {
   if (!/^[A-Za-z0-9_-]{39}$/.test(token)) {
-    throw new HttpError(401, "分享链接无效");
+    throw new HttpError(401, '分享链接无效');
   }
-  const bytes = Buffer.from(token, "base64url");
+  const bytes = Buffer.from(token, 'base64url');
   if (bytes.length !== TOKEN_BYTES || bytes[0] !== 1) {
-    throw new HttpError(401, "分享链接无效");
+    throw new HttpError(401, '分享链接无效');
   }
   const expiresAt = bytes.readUInt32BE(1);
   return { token, expiresAt, key: objectKey(token, expiresAt) };
 }
 
-function objectKey(token: string, expiresAt: number) {
-  const id = createHash("sha256").update(token).digest("base64url");
+export function objectKey(token: string, expiresAt: number) {
+  const id = createHash('sha256').update(token).digest('base64url');
   return `v1/exp=${dateKey(expiresAt)}/${id.slice(0, 2)}/${id}`;
 }

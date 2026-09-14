@@ -13,6 +13,7 @@ import {
 } from '../cloud-functions/_shared/constants';
 import { jsonResponse } from '../cloud-functions/_shared/http';
 import { replayContentResponse } from '../cloud-functions/api/replays/content';
+import { replayCodeResponse } from '../cloud-functions/api/replays/code';
 import { replayUploadResponse } from '../cloud-functions/api/replays/index';
 import { LocalFileStore } from './local-file-store';
 
@@ -108,13 +109,18 @@ export function localReplayApiPlugin(options: LocalReplayApiOptions): Plugin {
           ).pathname;
           const isUpload = pathname === '/api/replays';
           const isContent = pathname === '/api/replays/content';
-          if (!isUpload && !isContent) return next();
+          const isCode = pathname === '/api/replays/code';
+          if (!isUpload && !isContent && !isCode) return next();
 
           if (isUpload && incoming.method !== 'POST') {
             await sendResponse(methodNotAllowed('POST'), outgoing);
             return;
           }
           if (isContent && incoming.method !== 'GET') {
+            await sendResponse(methodNotAllowed('GET'), outgoing);
+            return;
+          }
+          if (isCode && incoming.method !== 'GET') {
             await sendResponse(methodNotAllowed('GET'), outgoing);
             return;
           }
@@ -135,7 +141,14 @@ export function localReplayApiPlugin(options: LocalReplayApiOptions): Plugin {
           };
           const response = isUpload
             ? await replayUploadResponse(context, factory)
-            : await replayContentResponse(request, data);
+            : isContent
+              ? await replayContentResponse(
+                  request,
+                  data,
+                  Math.floor(Date.now() / 1000),
+                  control,
+                )
+              : await replayCodeResponse(request, control);
           await sendResponse(response, outgoing);
         } catch (error) {
           server.config.logger.error(

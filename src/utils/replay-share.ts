@@ -10,10 +10,16 @@ type WorkerResponse = {
 
 export type ShareUploadResult = {
   shareUrl: string;
+  shareCode: string;
   expiresAt: string;
   originalBytes: number;
   storedBytes: number;
   privacyMode: ReplayPrivacyMode;
+};
+
+export type ShareCodeResolveResult = {
+  token: string;
+  expiresAt: string;
 };
 
 let worker: Worker | null = null;
@@ -126,6 +132,15 @@ export async function fetchSharedReplay(capability: string) {
     expiresAt: response.headers.get("X-Replay-Expires-At") || "",
     privacyMode: response.headers.get("X-Replay-Privacy") || "",
   };
+}
+
+export async function resolveShareCode(code: string) {
+  const params = new URLSearchParams({ code: code.trim() });
+  const response = await fetch(`/api/replays/code?${params.toString()}`, {
+    credentials: 'same-origin',
+  });
+  if (!response.ok) throw new Error(await apiError(response));
+  return (await response.json()) as ShareCodeResolveResult;
 }
 
 export function capabilityFromHash(hash = location.hash) {

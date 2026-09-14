@@ -17,7 +17,7 @@
           :class="{ selected: retentionDays === 90 }"
           @click="$emit('update:retention-days', 90)"
         >
-          90 天 <small>需要激活码</small>
+          90 天 <small>需要邀请码</small>
         </button>
       </div>
       <input
@@ -41,59 +41,71 @@
       @click="$emit('share')"
     >
       <ShareOne size="18" fill="currentColor" />
-      {{ busy ? busyLabel : '生成分享链接' }}
+      {{ busy ? "正在处理中…" : "生成分享链接" }}
     </button>
 
-    <div v-if="compressedBytes !== null" class="compression-result">
-      <Check size="15" fill="currentColor" />
-      已压缩至 {{ formatBytes(compressedBytes) }}，小于 256 KiB
-    </div>
     <div v-if="error" class="share-error">{{ error }}</div>
 
     <div v-if="result" class="share-result">
       <div class="result-heading">
-        <span><LinkOne size="16" fill="currentColor" /> 分享链接已生成</span>
+        <span><LinkOne size="16" fill="currentColor" /> 上传成功</span>
         <small>{{ formatExpiry(result.expiresAt) }} 过期</small>
       </div>
       <div class="link-row">
         <input :value="result.shareUrl" readonly aria-label="分享链接" />
         <button type="button" @click="copyLink">
           <Copy size="15" fill="currentColor" />
-          {{ copied ? '已复制' : '复制' }}
+          {{ copied ? "已复制" : "复制" }}
         </button>
       </div>
       <p>任何拿到链接的人都能下载，请只发给可信对象。</p>
+      <div class="share-result-grid" :class="{ 'has-qr': qrDataUrl }">
+        <div v-if="qrDataUrl" class="qr-card">
+          <img :src="qrDataUrl" alt="分享链接二维码" />
+          <span>扫码打开分享下载页</span>
+        </div>
+        <div class="share-code-card">
+          <span class="share-code-label">分享码</span>
+          <strong>{{ result.shareCode }}</strong>
+          <button type="button" @click="copyShareCode">
+            <Copy size="14" fill="currentColor" />
+            {{ copiedCode ? "已复制" : "复制分享码" }}
+          </button>
+          <RouterLink to="/share/code">输入分享码打开</RouterLink>
+        </div>
+      </div>
     </div>
   </section>
 </template>
 
 <script setup lang="ts">
-import { ref } from 'vue';
-import { Check, Copy, LinkOne, ShareOne } from '@icon-park/vue-next';
-import { formatBytes } from '../utils/replay';
-import type { ShareUploadResult } from '../utils/replay-share';
+import { ref, watch } from "vue";
+import { Copy, LinkOne, ShareOne } from "@icon-park/vue-next";
+import QRCode from "qrcode";
+import type { ShareUploadResult } from "../utils/replay-share";
 
 const props = defineProps<{
   retentionDays: 7 | 90;
   inviteCode: string;
   canShare: boolean;
   busy: boolean;
-  busyLabel: string;
-  compressedBytes: number | null;
   result: ShareUploadResult | null;
   error: string;
 }>();
 
 const emit = defineEmits<{
-  'update:retention-days': [value: 7 | 90];
-  'update:invite-code': [value: string];
+  "update:retention-days": [value: 7 | 90];
+  "update:invite-code": [value: string];
   share: [];
 }>();
 
 const copied = ref(false);
+const copiedCode = ref(false);
+const qrDataUrl = ref("");
+let qrGeneration = 0;
 
 function onInviteInput(event: Event) {
-  emit('update:invite-code', (event.target as HTMLInputElement).value);
+  emit("update:invite-code", (event.target as HTMLInputElement).value);
 }
 
 async function copyLink() {
@@ -103,12 +115,43 @@ async function copyLink() {
   window.setTimeout(() => (copied.value = false), 1800);
 }
 
+async function copyShareCode() {
+  if (!props.result) return;
+  await navigator.clipboard.writeText(props.result.shareCode);
+  copiedCode.value = true;
+  window.setTimeout(() => (copiedCode.value = false), 1800);
+}
+
+watch(
+  () => props.result?.shareUrl,
+  async (shareUrl) => {
+    const generation = ++qrGeneration;
+    qrDataUrl.value = "";
+    if (!shareUrl) return;
+    try {
+      const dataUrl = await QRCode.toDataURL(shareUrl, {
+        errorCorrectionLevel: "M",
+        margin: 1,
+        width: 180,
+        color: {
+          dark: "#21112c",
+          light: "#fff9ff",
+        },
+      });
+      if (generation === qrGeneration) qrDataUrl.value = dataUrl;
+    } catch {
+      // 链接文字仍可复制，二维码失败不应影响分享结果。
+    }
+  },
+  { immediate: true },
+);
+
 function formatExpiry(value: string) {
-  return new Intl.DateTimeFormat('zh-CN', {
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
+  return new Intl.DateTimeFormat("zh-CN", {
+    month: "short",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
   }).format(new Date(value));
 }
 </script>
@@ -188,17 +231,10 @@ function formatExpiry(value: string) {
   transform: translateY(-1px);
   filter: brightness(1.06);
 }
-.compression-result,
 .share-error {
   margin-top: 11px;
   font-size: 12px;
   line-height: 1.55;
-}
-.compression-result {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--green);
 }
 .share-error {
   color: #ff9db0;
@@ -233,7 +269,7 @@ function formatExpiry(value: string) {
   margin-top: 11px;
 }
 .link-row input {
-  font-family: 'Manrope', monospace;
+  font-family: "Manrope", monospace;
   font-size: 11px;
 }
 .link-row button {
@@ -254,6 +290,78 @@ function formatExpiry(value: string) {
   font-size: 11px;
   line-height: 1.5;
 }
+.share-result-grid {
+  display: grid;
+  grid-template-columns: 180px minmax(0, 1fr);
+  gap: 13px;
+  align-items: stretch;
+  margin-top: 14px;
+}
+.share-result-grid:not(.has-qr) {
+  grid-template-columns: 1fr;
+}
+.qr-card,
+.share-code-card {
+  display: grid;
+  justify-items: center;
+  align-content: center;
+  gap: 8px;
+  min-width: 0;
+  padding: 11px;
+  border: 1px solid rgba(193, 160, 255, 0.16);
+  border-radius: 10px;
+  background: rgba(9, 5, 21, 0.3);
+}
+.qr-card img {
+  display: block;
+  width: 150px;
+  height: 150px;
+  border-radius: 5px;
+}
+.qr-card span,
+.share-code-label {
+  color: var(--muted);
+  font-size: 11px;
+}
+.share-code-card {
+  justify-items: stretch;
+  text-align: center;
+}
+.share-code-card strong {
+  overflow: hidden;
+  color: var(--gold);
+  font-family: "Manrope", monospace;
+  font-size: clamp(22px, 4vw, 28px);
+  letter-spacing: 0.12em;
+  text-overflow: ellipsis;
+}
+.share-code-card button,
+.share-code-card a {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  min-height: 31px;
+  padding: 7px 9px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+}
+.share-code-card button {
+  border: 1px solid rgba(244, 198, 108, 0.28);
+  color: var(--gold);
+  background: rgba(244, 198, 108, 0.08);
+}
+.share-code-card a {
+  border: 1px solid rgba(193, 160, 255, 0.18);
+  color: var(--purple-bright);
+  text-decoration: none;
+}
+.share-code-card button:hover,
+.share-code-card a:hover {
+  border-color: rgba(244, 198, 108, 0.5);
+  background: rgba(244, 198, 108, 0.14);
+}
 
 @media (max-width: 620px) {
   .share-panel {
@@ -262,6 +370,9 @@ function formatExpiry(value: string) {
   .result-heading {
     align-items: flex-start;
     flex-direction: column;
+  }
+  .share-result-grid {
+    grid-template-columns: 1fr;
   }
 }
 </style>

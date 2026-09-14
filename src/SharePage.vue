@@ -23,12 +23,17 @@
         </div>
         <div class="heading-copy">
           <h1>分享回放</h1>
-          <p>上传回放文件，生成一个安全的临时分享链接。</p>
+          <p>为回放生成一个临时分享链接</p>
         </div>
       </div>
-      <RouterLink class="page-nav" to="/"
-        >打开匿名化工具 <Right size="15" fill="currentColor"
-      /></RouterLink>
+      <nav class="page-nav-group" aria-label="页面导航">
+        <RouterLink class="page-nav" to="/share/code"
+          >输入分享码 <Right size="15" fill="currentColor"
+        /></RouterLink>
+        <RouterLink class="page-nav" to="/"
+          >打开匿名化工具 <Right size="15" fill="currentColor"
+        /></RouterLink>
+      </nav>
     </section>
 
     <section class="content-grid">
@@ -51,10 +56,20 @@
           class="panel privacy-status"
           :class="`is-${privacyAssessment}`"
         >
-          <div class="privacy-status-icon"><Shield size="19" fill="currentColor" /></div>
-          <div>
+          <div class="privacy-status-icon">
+            <Shield size="19" fill="currentColor" />
+          </div>
+          <div class="privacy-status-copy">
             <strong>{{ privacyTitle }}</strong>
             <p>{{ privacyDescription }}</p>
+            <button
+              v-if="privacyAssessment === 'original'"
+              type="button"
+              class="privacy-action"
+              @click="goToAnonymizer"
+            >
+              先去匿名化工具处理 <Right size="15" fill="currentColor" />
+            </button>
           </div>
         </section>
       </div>
@@ -65,22 +80,12 @@
           :invite-code="inviteCode"
           :can-share="Boolean(analysis && sourceBytes)"
           :busy="shareBusy"
-          :busy-label="shareBusyLabel"
-          :compressed-bytes="compressedBytes"
           :result="shareResult"
           :error="shareError"
           @update:retention-days="retentionDays = $event"
           @update:invite-code="inviteCode = $event"
           @share="shareReplay"
         />
-
-        <section v-if="privacyAssessment === 'original'" class="panel risk-panel">
-          <div class="risk-heading"><Shield size="17" fill="currentColor" /> 文件尚未匿名化</div>
-          <p>你仍可以继续分享原始文件，但其中可能包含玩家昵称、账号或房间信息。</p>
-          <button type="button" @click="goToAnonymizer">
-            先去匿名化工具处理 <Right size="15" fill="currentColor" />
-          </button>
-        </section>
       </aside>
     </section>
 
@@ -107,10 +112,7 @@ import ReplaySharePanel from "./components/ReplaySharePanel.vue";
 import ReplayUploader from "./components/ReplayUploader.vue";
 import SharedReplayView from "./components/SharedReplayView.vue";
 import { detectReplayPrivacy, inspectReplay } from "./utils/replay";
-import type {
-  ReplayAnalysis,
-  ReplayPrivacyAssessment,
-} from "./utils/replay";
+import type { ReplayAnalysis, ReplayPrivacyAssessment } from "./utils/replay";
 import {
   capabilityFromHash,
   decodeSharedReplay,
@@ -125,10 +127,7 @@ import {
   defaultSharedReplayName,
 } from "./utils/replay-download";
 import type { ReplayDownloadOptions } from "./utils/replay-download";
-import {
-  putReplayHandoff,
-  takeReplayHandoff,
-} from "./utils/replay-handoff";
+import { putReplayHandoff, takeReplayHandoff } from "./utils/replay-handoff";
 import { ROOT_PATH, SHARE_PATH } from "./utils/routes";
 
 const router = useRouter();
@@ -148,8 +147,6 @@ const handoffPrivacyMode = ref<ReplayPrivacyMode | null>(null);
 const retentionDays = ref<7 | 90>(7);
 const inviteCode = ref("");
 const shareBusy = ref(false);
-const shareBusyLabel = ref("极限压缩中…");
-const compressedBytes = ref<number | null>(null);
 const shareResult = ref<ShareUploadResult | null>(null);
 const shareError = ref("");
 
@@ -202,7 +199,8 @@ async function handleFileSelected(
     sourceBytes.value = data;
     analysis.value = nextAnalysis;
     handoffPrivacyMode.value = privacyModeOverride;
-    privacyAssessment.value = privacyModeOverride || detectPrivacy(nextAnalysis);
+    privacyAssessment.value =
+      privacyModeOverride || detectPrivacy(nextAnalysis);
     notice.value = `已解析 ${nextAnalysis.frameCount.toLocaleString()} 个回放帧`;
   } catch (error) {
     file.value = null;
@@ -210,7 +208,8 @@ async function handleFileSelected(
     analysis.value = null;
     privacyAssessment.value = null;
     handoffPrivacyMode.value = null;
-    notice.value = error instanceof Error ? error.message : "无法解析这个回放文件";
+    notice.value =
+      error instanceof Error ? error.message : "无法解析这个回放文件";
   } finally {
     busy.value = false;
     dragging.value = false;
@@ -232,7 +231,6 @@ function clearFile() {
 }
 
 function resetShareResult() {
-  compressedBytes.value = null;
   shareResult.value = null;
   shareError.value = "";
 }
@@ -242,30 +240,28 @@ async function shareReplay() {
   shareBusy.value = true;
   shareError.value = "";
   shareResult.value = null;
-  compressedBytes.value = null;
-  shareBusyLabel.value = "极限压缩中…";
   try {
     const container = await encodeReplayForShare(
       sourceBytes.value,
       effectivePrivacyMode.value,
     );
-    compressedBytes.value = container.length;
-    shareBusyLabel.value = "安全上传中…";
     shareResult.value = await uploadReplay(
       container,
       retentionDays.value,
       inviteCode.value,
     );
-    notice.value = "分享链接已生成";
+    notice.value = "上传成功";
   } catch (error) {
-    shareError.value = error instanceof Error ? error.message : "无法生成分享链接";
+    shareError.value =
+      error instanceof Error ? error.message : "无法生成分享链接";
   } finally {
     shareBusy.value = false;
   }
 }
 
 async function goToAnonymizer() {
-  if (!sourceBytes.value || !file.value || busy.value || shareBusy.value) return;
+  if (!sourceBytes.value || !file.value || busy.value || shareBusy.value)
+    return;
   try {
     await putReplayHandoff(
       "anonymizer",
@@ -371,6 +367,11 @@ onBeforeUnmount(() => {
 .share-page .workspace-heading {
   gap: 24px;
 }
+.page-nav-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
 .page-nav {
   display: inline-flex;
   align-items: center;
@@ -390,8 +391,7 @@ onBeforeUnmount(() => {
   color: var(--ink);
   background: rgba(169, 108, 255, 0.15);
 }
-.privacy-status,
-.risk-panel {
+.privacy-status {
   display: flex;
   gap: 12px;
   padding: 16px 18px;
@@ -415,34 +415,19 @@ onBeforeUnmount(() => {
   color: var(--ink);
   font-size: 13px;
 }
-.privacy-status p,
-.risk-panel p {
+.privacy-status-copy {
+  min-width: 0;
+}
+.privacy-status p {
   margin: 5px 0 0;
   color: var(--muted);
   font-size: 12px;
   line-height: 1.6;
 }
-.risk-panel {
-  display: block;
-  border-color: rgba(244, 198, 108, 0.24);
-  background: linear-gradient(
-    145deg,
-    rgba(74, 48, 31, 0.3),
-    rgba(23, 15, 45, 0.84)
-  );
-}
-.risk-heading {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  color: var(--gold);
-  font-size: 13px;
-  font-weight: 800;
-}
-.risk-panel button {
+.privacy-action {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 7px;
   margin-top: 13px;
   padding: 8px 10px;
   border: 1px solid rgba(244, 198, 108, 0.28);
@@ -452,7 +437,7 @@ onBeforeUnmount(() => {
   font-size: 12px;
   font-weight: 700;
 }
-.risk-panel button:hover {
+.privacy-action:hover {
   border-color: rgba(244, 198, 108, 0.52);
   background: rgba(244, 198, 108, 0.14);
 }
@@ -461,8 +446,11 @@ onBeforeUnmount(() => {
   .share-page .workspace-heading {
     gap: 14px;
   }
-  .page-nav {
+  .page-nav-group {
     width: 100%;
+  }
+  .page-nav {
+    flex: 1;
     justify-content: center;
   }
 }

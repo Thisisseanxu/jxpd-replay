@@ -24,6 +24,7 @@ import {
 } from '../cloud-functions/_shared/replay-pack';
 import { MAX_PACKED_REPLAY_BYTES } from '../cloud-functions/_shared/constants';
 import {
+  ANONYMOUS_REPLAY_ID,
   anonymizeReplay,
   detectReplayPrivacy,
   inspectReplay,
@@ -44,9 +45,19 @@ import {
 } from '../cloud-functions/_shared/replay-validation';
 import { cleanupExpired } from '../cloud-functions/api/internal/replay-cleanup';
 import { replayContentResponse } from '../cloud-functions/api/replays/content';
+import { replayCodeResponse } from '../cloud-functions/api/replays/code';
 import { replayUploadResponse } from '../cloud-functions/api/replays/index';
+import {
+  shareCodeKey,
+  SHARE_CODE_LENGTH,
+} from '../cloud-functions/_shared/share-code';
 import { LocalFileStore } from '../dev/local-file-store';
-import { isSharePath, sharePagePath } from '../src/utils/routes';
+import {
+  isKnownPath,
+  isShareCodePath,
+  isSharePath,
+  sharePagePath,
+} from '../src/utils/routes';
 import {
   putReplayHandoff,
   takeReplayHandoff,
@@ -199,7 +210,11 @@ class MemoryStore {
   failDeleteOnce = false;
   failGetOnce = false;
 
-  async set(key: string, value: string, options?: { onlyIfNew?: boolean }) {
+  async set(
+    key: string,
+    value: string | ArrayBuffer,
+    options?: { onlyIfNew?: boolean },
+  ) {
     if (this.setErrorOnce) {
       const error = this.setErrorOnce;
       this.setErrorOnce = null;
@@ -215,6 +230,14 @@ class MemoryStore {
     this.values.set(key, value);
   }
 
+  async setJSON(
+    key: string,
+    value: unknown,
+    options?: { onlyIfNew?: boolean },
+  ) {
+    await this.set(key, JSON.stringify(value), options);
+  }
+
   async delete(key: string) {
     if (this.failDeleteOnce) {
       this.failDeleteOnce = false;
@@ -223,12 +246,21 @@ class MemoryStore {
     this.values.delete(key);
   }
 
-  async get(key: string) {
+  async get(key: string, options: { type?: string } = {}) {
     if (this.failGetOnce) {
       this.failGetOnce = false;
       throw new Error('temporary blob failure');
     }
-    return (this.values.get(key) as ArrayBuffer | undefined) ?? null;
+    const value = this.values.get(key);
+    if (value === undefined) return null;
+    if (options.type === 'json') {
+      return typeof value === 'string' ? JSON.parse(value) : value;
+    }
+    return value;
+  }
+
+  async getMetadata(key: string) {
+    return this.values.has(key) ? { etag: key } : null;
   }
 
   async list(
@@ -269,7 +301,10 @@ describe('JXRS v1 container', () => {
     const packed = packReplayLossless(replay);
     expect(unpackReplayLossless(packed, replay.length)).toEqual(replay);
     expect(() =>
-      unpackReplayLossless(packed.subarray(0, packed.length - 1), replay.length),
+      unpackReplayLossless(
+        packed.subarray(0, packed.length - 1),
+        replay.length,
+      ),
     ).toThrow();
   });
 
@@ -358,12 +393,25 @@ describe('replay privacy detection', () => {
     );
     expect(detectReplayPrivacy(customAnalysis)).toBe('custom');
   });
+
+  it('produces deterministic website-marked anonymous replay bytes', () => {
+    const source = inspectReplay(replayWithIdentity(42n, 'Alice', 'arena'));
+    const first = anonymizeReplay(source, new Set(), false);
+    const second = anonymizeReplay(source, new Set(), false);
+
+    expect(first.replayId).toBe(ANONYMOUS_REPLAY_ID);
+    expect(second.replayId).toBe(ANONYMOUS_REPLAY_ID);
+    expect(second.bytes).toEqual(first.bytes);
+  });
 });
 
 describe('share routes', () => {
   it('recognizes the share page and preserves fragment capabilities', () => {
     expect(isSharePath('/share')).toBe(true);
     expect(isSharePath('/share/')).toBe(true);
+    expect(isShareCodePath('/share/code')).toBe(true);
+    expect(isShareCodePath('/share/code/')).toBe(true);
+    expect(isKnownPath('/share/code')).toBe(true);
     expect(isSharePath('/')).toBe(false);
     expect(sharePagePath('?from=tool', '#/r/test')).toBe(
       '/share?from=tool#/r/test',
@@ -565,7 +613,7 @@ describe('upload request limits', () => {
 });
 
 describe('upload API policies', () => {
-  it('stores a valid anonymous replay and returns only a fragment capability', async () => {
+  it('stores a valid anonymous replay and returns a fragment capability plus short code', async () => {
     const stores = memoryStores();
     const { env } = uploadEnvironment();
     const response = await replayUploadResponse(
@@ -579,14 +627,152 @@ describe('upload API policies', () => {
     expect(response.status).toBe(201);
     const result = (await response.json()) as {
       shareUrl: string;
+      shareCode: string;
       storedBytes: number;
     };
     expect(result.shareUrl).toMatch(
       /^https:\/\/example\.com\/share#\/r\/[A-Za-z0-9_-]{39}$/,
     );
+    expect(result.shareCode).toMatch(
+      new RegExp(`^[A-Za-z0-9]{${SHARE_CODE_LENGTH}}$`),
+    );
     expect(result.storedBytes).toBeGreaterThan(43);
     expect(stores.data.values.size).toBe(1);
+    expect(
+      [...stores.control.values.keys()].filter((key) =>
+        key.startsWith('share-code/v1/'),
+      ),
+    ).toHaveLength(1);
     expect(response.headers.get('set-cookie')).toContain('__Host-jxpd_device=');
+
+    const resolved = await replayCodeResponse(
+      new Request(
+        `https://example.com/api/replays/code?code=${result.shareCode}`,
+      ),
+      stores.control as unknown as Store,
+    );
+    expect(resolved.status).toBe(200);
+    await expect(resolved.json()).resolves.toMatchObject({
+      token: result.shareUrl.split('/share#/r/')[1],
+    });
+  });
+
+  it('reuses the link, share code, and data object while refreshing an identical upload', async () => {
+    vi.useFakeTimers();
+    try {
+      const stores = memoryStores();
+      const { env } = uploadEnvironment();
+      const body = serverContainer(validReplay());
+      vi.setSystemTime(new Date('2026-09-14T00:00:00Z'));
+      const firstResponse = await replayUploadResponse(
+        {
+          request: uploadRequest(body),
+          clientIp: '203.0.113.40',
+          env,
+        },
+        stores.factory,
+      );
+      const first = (await firstResponse.json()) as {
+        shareUrl: string;
+        shareCode: string;
+        expiresAt: string;
+      };
+
+      vi.setSystemTime(new Date('2026-09-15T02:00:00Z'));
+      const secondResponse = await replayUploadResponse(
+        {
+          request: uploadRequest(body),
+          clientIp: '203.0.113.40',
+          env,
+        },
+        stores.factory,
+      );
+      const second = (await secondResponse.json()) as typeof first;
+
+      expect(second.shareUrl).toBe(first.shareUrl);
+      expect(second.shareCode).toBe(first.shareCode);
+      expect(Date.parse(second.expiresAt)).toBeGreaterThan(
+        Date.parse(first.expiresAt),
+      );
+      expect(stores.data.values.size).toBe(1);
+      expect(
+        [...stores.control.values.keys()].filter((key) => key.includes('/ip/')),
+      ).toHaveLength(2);
+
+      const token = first.shareUrl.split('/share#/r/')[1];
+      const afterOriginalExpiry =
+        Math.floor(Date.parse(first.expiresAt) / 1000) + 60 * 60;
+      const download = await replayContentResponse(
+        new Request('https://example.com/api/replays/content', {
+          headers: { Authorization: `Replay ${token}` },
+        }),
+        stores.data as unknown as Store,
+        afterOriginalExpiry,
+        stores.control as unknown as Store,
+      );
+      expect(download.status).toBe(200);
+
+      const resolved = await replayCodeResponse(
+        new Request(
+          `https://example.com/api/replays/code?code=${first.shareCode}`,
+        ),
+        stores.control as unknown as Store,
+        afterOriginalExpiry,
+      );
+      expect(resolved.status).toBe(200);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('collapses concurrent identical uploads into one share', async () => {
+    const stores = memoryStores();
+    const { env } = uploadEnvironment();
+    const body = serverContainer(validReplay());
+    const responses = await Promise.all(
+      ['203.0.113.41', '203.0.113.42'].map((clientIp) =>
+        replayUploadResponse(
+          { request: uploadRequest(body), clientIp, env },
+          stores.factory,
+        ),
+      ),
+    );
+    const results = (await Promise.all(
+      responses.map((response) => response.json()),
+    )) as Array<{ shareUrl: string; shareCode: string }>;
+
+    expect(responses.map((response) => response.status)).toEqual([201, 201]);
+    expect(new Set(results.map((result) => result.shareUrl)).size).toBe(1);
+    expect(new Set(results.map((result) => result.shareCode)).size).toBe(1);
+    expect(stores.data.values.size).toBe(1);
+    expect(
+      [...stores.control.values.keys()].filter((key) =>
+        key.startsWith('share-code/v1/'),
+      ),
+    ).toHaveLength(1);
+  });
+
+  it('rejects malformed and expired share codes', async () => {
+    const stores = memoryStores();
+    const capability = createCapability(7);
+    await stores.control.setJSON(shareCodeKey('ABC123'), {
+      token: capability.token,
+      expiresAt: capability.expiresAt,
+    });
+
+    const malformed = await replayCodeResponse(
+      new Request('https://example.com/api/replays/code?code=short'),
+      stores.control as unknown as Store,
+    );
+    expect(malformed.status).toBe(400);
+
+    const expired = await replayCodeResponse(
+      new Request('https://example.com/api/replays/code?code=ABC123'),
+      stores.control as unknown as Store,
+      capability.expiresAt,
+    );
+    expect(expired.status).toBe(404);
+    expect(stores.control.values.has(shareCodeKey('ABC123'))).toBe(false);
   });
 
   it('charges invalid input to subjects but not to global valid-upload quota', async () => {
@@ -659,32 +845,35 @@ describe('upload API policies', () => {
     new QuotaExceededError(),
     new PagesBlobError('CREDENTIAL_ERROR', 'storage quota exceeded'),
     new PagesBlobError('COS_ERROR', 'COS returned 413: storage quota exceeded'),
-  ])('reports Blob capacity exhaustion as a temporary busy response', async (error) => {
-    const stores = memoryStores();
-    const { env } = uploadEnvironment();
-    stores.data.setErrorOnce = error;
+  ])(
+    'reports Blob capacity exhaustion as a temporary busy response',
+    async (error) => {
+      const stores = memoryStores();
+      const { env } = uploadEnvironment();
+      stores.data.setErrorOnce = error;
 
-    const response = await replayUploadResponse(
-      {
-        request: uploadRequest(serverContainer(validReplay())),
-        clientIp: '203.0.113.22',
-        env,
-      },
-      stores.factory,
-    );
+      const response = await replayUploadResponse(
+        {
+          request: uploadRequest(serverContainer(validReplay())),
+          clientIp: '203.0.113.22',
+          env,
+        },
+        stores.factory,
+      );
 
-    expect(response.status).toBe(503);
-    expect(response.headers.get('retry-after')).toBe('3600');
-    await expect(response.json()).resolves.toEqual({
-      error: '网站过于繁忙，请之后再来',
-    });
-    expect(
-      [...stores.control.values.keys()].filter((key) =>
-        key.includes('/global/'),
-      ),
-    ).toHaveLength(0);
-    expect(stores.data.values.size).toBe(0);
-  });
+      expect(response.status).toBe(503);
+      expect(response.headers.get('retry-after')).toBe('3600');
+      await expect(response.json()).resolves.toEqual({
+        error: '网站过于繁忙，请之后再来',
+      });
+      expect(
+        [...stores.control.values.keys()].filter((key) =>
+          key.includes('/global/'),
+        ),
+      ).toHaveLength(0);
+      expect(stores.data.values.size).toBe(0);
+    },
+  );
 
   it('enforces five anonymous uploads per IP', async () => {
     const stores = memoryStores();
@@ -853,19 +1042,26 @@ describe('expiry cleanup', () => {
     data.values.set('v1/exp=2026-10-01/cc/c', 'future');
     control.values.set('quota/2026-09-05/anonymous/ip/a/0', 'old');
     control.values.set('quota/2026-09-06/anonymous/ip/b/0', 'today');
+    control.values.set('cleanup-lock/2026-09-05', 'complete:1');
+    control.values.set('cleanup-lock/2026-09-06', 'running');
+    control.values.set('cleanup-lock/2026-10-01', 'future');
+    control.values.set('cleanup-lock/not-a-date', 'ignored');
 
     const first = await cleanupExpired(
       data as unknown as Store,
       control as unknown as Store,
       '2026-09-06',
     );
-    expect(first).toEqual({ deleted: 2, complete: true });
+    expect(first).toEqual({ deleted: 3, complete: true });
     expect([...data.values.keys()]).toEqual([
       'v1/exp=2026-09-06/bb/b',
       'v1/exp=2026-10-01/cc/c',
     ]);
     expect([...control.values.keys()]).toEqual([
       'quota/2026-09-06/anonymous/ip/b/0',
+      'cleanup-lock/2026-09-06',
+      'cleanup-lock/2026-10-01',
+      'cleanup-lock/not-a-date',
     ]);
     await expect(
       cleanupExpired(
@@ -874,6 +1070,52 @@ describe('expiry cleanup', () => {
         '2026-09-06',
       ),
     ).resolves.toEqual({ deleted: 0, complete: true });
+  });
+
+  it('removes expired share code mappings while retaining live mappings', async () => {
+    const data = new MemoryStore();
+    const control = new MemoryStore();
+    const expired = createCapability(7);
+    const live = createCapability(7);
+    await control.setJSON(shareCodeKey('OLD123'), {
+      token: expired.token,
+      expiresAt: 1,
+    });
+    await control.setJSON(shareCodeKey('LIVE12'), {
+      token: live.token,
+      expiresAt: live.expiresAt,
+    });
+
+    await expect(
+      cleanupExpired(
+        data as unknown as Store,
+        control as unknown as Store,
+        '2026-09-14',
+      ),
+    ).resolves.toMatchObject({ deleted: 1, complete: true });
+    expect(control.values.has(shareCodeKey('OLD123'))).toBe(false);
+    expect(control.values.has(shareCodeKey('LIVE12'))).toBe(true);
+  });
+
+  it('counts old cleanup locks against the shared deletion budget', async () => {
+    const data = new MemoryStore();
+    const control = new MemoryStore();
+    control.values.set('cleanup-lock/2026-09-03', 'complete:1');
+    control.values.set('cleanup-lock/2026-09-04', 'complete:2');
+    control.values.set('cleanup-lock/2026-09-06', 'running');
+
+    await expect(
+      cleanupExpired(
+        data as unknown as Store,
+        control as unknown as Store,
+        '2026-09-06',
+        1,
+      ),
+    ).resolves.toEqual({ deleted: 1, complete: false });
+    expect([...control.values.keys()]).toEqual([
+      'cleanup-lock/2026-09-04',
+      'cleanup-lock/2026-09-06',
+    ]);
   });
 
   it('resumes after a page budget or temporary delete failure', async () => {
