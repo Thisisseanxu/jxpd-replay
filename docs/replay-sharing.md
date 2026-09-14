@@ -10,6 +10,8 @@
 
 Blob 不使用预签名直传，因为预签名 PUT 不能约束最终字节数，也不能在写入前验证回放结构。两个 Blob 命名空间只由 Functions SDK 访问，浏览器不持有 Blob Token。Blob SDK 会在首次使用命名空间时创建它。
 
+上传接口接受请求 URL 的同源 `Origin`，并额外允许 `https://jx.mhpd.fans` 与 `https://jxdev.mhpd.fans` 访问同一套 Functions 和 Blob；其他跨域来源仍返回 `403`。
+
 ## EdgeOne Makers 部署
 
 项目根目录的 `edgeone.json` 已配置：
@@ -18,6 +20,8 @@ Blob 不使用预签名直传，因为预签名 PUT 不能约束最终字节数�
 - Node.js Cloud Functions 最长执行 120 秒；
 - 每天 `03:15 Asia/Shanghai` 触发 `/api/internal/replay-cleanup`；
 - CSP、禁止 iframe、`nosniff`、无 Referrer 等静态安全响应头。
+
+CSP 的 `style-src` 只额外允许图标库生成的 `mask-type:alpha;` 样式属性哈希，不允许任意内联样式。
 
 在 EdgeOne Makers 控制台为项目配置以下加密环境变量：
 

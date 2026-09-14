@@ -610,6 +610,41 @@ describe('upload request limits', () => {
     });
     expectHttpStatus(() => assertUploadRequest(request), 413);
   });
+
+  it.each(['https://jx.mhpd.fans', 'https://jxdev.mhpd.fans'])(
+    'allows the trusted upload origin %s to use the shared backend',
+    (origin) => {
+      expect(() =>
+        assertUploadRequest(
+          new Request('https://internal-edgeone.example/api/replays', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/vnd.jxpd.replay-share-v1',
+              origin,
+            },
+            body: new Uint8Array([1]).buffer,
+          }),
+        ),
+      ).not.toThrow();
+    },
+  );
+
+  it('continues to reject untrusted cross-origin uploads', () => {
+    expectHttpStatus(
+      () =>
+        assertUploadRequest(
+          new Request('https://jx.mhpd.fans/api/replays', {
+            method: 'POST',
+            headers: {
+              'content-type': 'application/vnd.jxpd.replay-share-v1',
+              origin: 'https://jx.mhpd.fans.attacker.example',
+            },
+            body: new Uint8Array([1]).buffer,
+          }),
+        ),
+      403,
+    );
+  });
 });
 
 describe('upload API policies', () => {

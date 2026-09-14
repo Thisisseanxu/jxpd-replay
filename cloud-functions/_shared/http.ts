@@ -1,5 +1,10 @@
 import { MAX_CONTAINER_BYTES } from './constants.js';
 
+const TRUSTED_UPLOAD_ORIGINS = new Set([
+  'https://jx.mhpd.fans',
+  'https://jxdev.mhpd.fans',
+]);
+
 export class HttpError extends Error {
   constructor(
     public readonly status: number,
@@ -40,8 +45,21 @@ export function assertUploadRequest(request: Request) {
   }
 
   const origin = request.headers.get('origin');
-  if (origin && origin !== new URL(request.url).origin) {
-    throw new HttpError(403, '只允许从本站上传回放');
+  if (origin) {
+    let normalizedOrigin = '';
+    try {
+      const parsedOrigin = new URL(origin);
+      if (parsedOrigin.origin === origin)
+        normalizedOrigin = parsedOrigin.origin;
+    } catch {
+      // 非法 Origin 统一按跨站请求拒绝。
+    }
+    if (
+      normalizedOrigin !== new URL(request.url).origin &&
+      !TRUSTED_UPLOAD_ORIGINS.has(normalizedOrigin)
+    ) {
+      throw new HttpError(403, '只允许从本站上传回放');
+    }
   }
 
   const declaredLength = Number(request.headers.get('content-length'));
