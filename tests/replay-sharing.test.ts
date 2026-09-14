@@ -598,6 +598,39 @@ describe('upload request limits', () => {
     });
   });
 
+  it('reads a Buffer body supplied by the EdgeOne Node runtime', async () => {
+    const request = {
+      body: Buffer.from([1, 2, 3, 4]),
+    } as unknown as Request;
+    await expect(readLimitedBody(request)).resolves.toEqual(
+      new Uint8Array([1, 2, 3, 4]),
+    );
+  });
+
+  it('reads a Node-style async iterable body and enforces the limit', async () => {
+    const request = {
+      body: {
+        async *[Symbol.asyncIterator]() {
+          yield Buffer.alloc(200_000);
+          yield Buffer.alloc(62_145);
+        },
+      },
+    } as unknown as Request;
+    await expect(readLimitedBody(request)).rejects.toMatchObject({
+      status: 413,
+    });
+  });
+
+  it('uses the runtime arrayBuffer method as a final compatibility fallback', async () => {
+    const request = {
+      body: {},
+      arrayBuffer: async () => new Uint8Array([5, 6, 7]).buffer,
+    } as unknown as Request;
+    await expect(readLimitedBody(request)).resolves.toEqual(
+      new Uint8Array([5, 6, 7]),
+    );
+  });
+
   it('rejects an oversized Content-Length before reading', () => {
     const request = new Request('https://example.com/api/replays', {
       method: 'POST',

@@ -68,25 +68,76 @@ export function assertUploadRequest(request: Request) {
   }
 }
 
+function bodyChunk(value: unknown) {
+  if (typeof value === 'string') return new TextEncoder().encode(value);
+  if (value instanceof ArrayBuffer) return new Uint8Array(value);
+  if (ArrayBuffer.isView(value)) {
+    return new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
+  }
+  throw new TypeError('不支持的请求正文数据类型');
+}
+
+function isAsyncIterable(value: unknown): value is AsyncIterable<unknown> {
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    Symbol.asyncIterator in value &&
+    typeof value[Symbol.asyncIterator] === 'function'
+  );
+}
+
 export async function readLimitedBody(request: Request) {
-  if (!request.body) throw new HttpError(400, '上传内容为空');
-  const reader = request.body.getReader();
+  const body = request.body as unknown;
+  if (!body) throw new HttpError(400, '上传内容为空');
   const chunks: Uint8Array[] = [];
   let total = 0;
 
-  try {
-    while (true) {
-      const { done, value } = await reader.read();
-      if (done) break;
-      total += value.byteLength;
-      if (total > MAX_CONTAINER_BYTES) {
-        await reader.cancel();
-        throw new HttpError(413, '压缩后的回放超过 256 KiB');
-      }
-      chunks.push(value);
+  const append = (value: unknown) => {
+    const chunk = bodyChunk(value);
+    total += chunk.byteLength;
+    if (total > MAX_CONTAINER_BYTES) {
+      throw new HttpError(413, '压缩后的回放超过 256 KiB');
     }
-  } finally {
-    reader.releaseLock();
+    chunks.push(chunk);
+  };
+
+  if (
+    typeof body === 'string' ||
+    body instanceof ArrayBuffer ||
+    ArrayBuffer.isView(body)
+  ) {
+    append(body);
+  } else if (
+    typeof body === 'object' &&
+    body !== null &&
+    'getReader' in body &&
+    typeof body.getReader === 'function'
+  ) {
+    const reader = body.getReader();
+    try {
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
+        try {
+          append(value);
+        } catch (error) {
+          try {
+            await reader.cancel?.();
+          } catch {
+            // 保留正文大小错误，不让流取消失败覆盖它。
+          }
+          throw error;
+        }
+      }
+    } finally {
+      reader.releaseLock?.();
+    }
+  } else if (isAsyncIterable(body)) {
+    for await (const value of body) append(value);
+  } else if (typeof request.arrayBuffer === 'function') {
+    append(await request.arrayBuffer());
+  } else {
+    throw new TypeError('当前运行时无法读取请求正文');
   }
 
   if (total === 0) throw new HttpError(400, '上传内容为空');
