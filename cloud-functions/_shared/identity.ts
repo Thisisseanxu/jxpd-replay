@@ -3,8 +3,8 @@ import {
   randomBytes,
   timingSafeEqual,
 } from "node:crypto";
-import { DEVICE_COOKIE_NAME } from "./constants";
-import { HttpError } from "./http";
+import { DEVICE_COOKIE_NAME } from "./constants.js";
+import { HttpError } from "./http.js";
 
 export type Invite = { id: string; digest: string; retentionDays?: number };
 

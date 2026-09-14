@@ -3,38 +3,38 @@ import {
   PreconditionFailedError,
   type Store,
 } from '@edgeone/pages-blob';
-import { CONTROL_STORE_NAME, DATA_STORE_NAME } from '../../_shared/constants';
-import type { FunctionContext } from '../../_shared/constants';
-import { createCapability, objectKey } from '../../_shared/capability';
+import { CONTROL_STORE_NAME, DATA_STORE_NAME } from '../../_shared/constants.js';
+import type { FunctionContext } from '../../_shared/constants.js';
+import { createCapability, objectKey } from '../../_shared/capability.js';
 import {
   createShareCode,
   shareCodeKey,
   type ShareCodeRecord,
-} from '../../_shared/share-code';
-import { isBlobCapacityError } from '../../_shared/blob-errors';
+} from '../../_shared/share-code.js';
+import { isBlobCapacityError } from '../../_shared/blob-errors.js';
 import {
   deviceIdentity,
   quotaHash,
   requiredSecret,
   shanghaiDay,
   validateInvite,
-} from '../../_shared/identity';
+} from '../../_shared/identity.js';
 import {
   assertUploadRequest,
   errorResponse,
   HttpError,
   jsonResponse,
   readLimitedBody,
-} from '../../_shared/http';
-import { claimGlobal, claimSlots } from '../../_shared/quota';
+} from '../../_shared/http.js';
+import { claimGlobal, claimSlots } from '../../_shared/quota.js';
 import {
   isReplayRecord,
   replayCapabilityKey,
   replayDedupKey,
   replayDigest,
   type ReplayRecord,
-} from '../../_shared/replay-record';
-import { validateContainer } from '../../_shared/replay-validation';
+} from '../../_shared/replay-record.js';
+import { validateContainer } from '../../_shared/replay-validation.js';
 
 async function reserveShareCode(
   control: Store,

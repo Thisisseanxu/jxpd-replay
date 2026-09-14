@@ -4,7 +4,7 @@ import vueDevTools from 'vite-plugin-vue-devtools'
 import { VitePWA } from 'vite-plugin-pwa'
 import { defineConfig, loadEnv } from 'vite'
 import pkg from './package.json' with { type: 'json' }
-import { localReplayApiPlugin } from './dev/local-replay-api'
+import { localReplayApiPlugin } from './dev/local-replay-api.js'
 
 export default defineConfig(({ mode }) => ({
   base: '/',

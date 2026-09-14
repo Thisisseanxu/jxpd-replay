@@ -6,10 +6,10 @@ import {
   MAX_PACKED_REPLAY_BYTES,
   MAX_REPLAY_BYTES,
   MAX_REPLAY_FRAMES,
-} from './constants';
-import type { PrivacyMode } from './constants';
-import { HttpError } from './http';
-import { unpackReplayLossless } from './replay-pack';
+} from './constants.js';
+import type { PrivacyMode } from './constants.js';
+import { HttpError } from './http.js';
+import { unpackReplayLossless } from './replay-pack.js';
 
 const magic = Buffer.from('JXRS');
 const privacyModes: Record<number, PrivacyMode> = {

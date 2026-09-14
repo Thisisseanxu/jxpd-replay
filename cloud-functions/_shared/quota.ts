@@ -2,7 +2,7 @@ import {
   PreconditionFailedError,
   type Store,
 } from "@edgeone/pages-blob";
-import { HttpError } from "./http";
+import { HttpError } from "./http.js";
 
 export async function claimSlots(
   store: Store,

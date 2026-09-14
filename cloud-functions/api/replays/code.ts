@@ -1,17 +1,17 @@
 import { getStore, type Store } from '@edgeone/pages-blob';
-import { CONTROL_STORE_NAME } from '../../_shared/constants';
-import type { FunctionContext } from '../../_shared/constants';
-import { parseCapability } from '../../_shared/capability';
-import { errorResponse, HttpError, jsonResponse } from '../../_shared/http';
+import { CONTROL_STORE_NAME } from '../../_shared/constants.js';
+import type { FunctionContext } from '../../_shared/constants.js';
+import { parseCapability } from '../../_shared/capability.js';
+import { errorResponse, HttpError, jsonResponse } from '../../_shared/http.js';
 import {
   isReplayRecord,
   replayCapabilityKey,
-} from '../../_shared/replay-record';
+} from '../../_shared/replay-record.js';
 import {
   isShareCodeRecord,
   parseShareCode,
   shareCodeKey,
-} from '../../_shared/share-code';
+} from '../../_shared/share-code.js';
 
 const INVALID_CODE_MESSAGE = '分享码无效或已过期';
 

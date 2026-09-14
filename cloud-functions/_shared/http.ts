@@ -1,4 +1,4 @@
-import { MAX_CONTAINER_BYTES } from './constants';
+import { MAX_CONTAINER_BYTES } from './constants.js';
 
 export class HttpError extends Error {
   constructor(

@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { HttpError } from './http';
+import { HttpError } from './http.js';
 
 const TOKEN_BYTES = 29;
 

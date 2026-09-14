@@ -1,5 +1,5 @@
 import { createHash, randomBytes } from 'node:crypto';
-import { HttpError } from './http';
+import { HttpError } from './http.js';
 
 export const SHARE_CODE_LENGTH = 6;
 const SHARE_CODE_ALPHABET =

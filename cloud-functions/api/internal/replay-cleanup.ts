@@ -3,12 +3,12 @@ import {
   PreconditionFailedError,
   type Store,
 } from '@edgeone/pages-blob';
-import { CONTROL_STORE_NAME, DATA_STORE_NAME } from '../../_shared/constants';
-import type { FunctionContext } from '../../_shared/constants';
-import { errorResponse, jsonResponse } from '../../_shared/http';
-import { shanghaiDay } from '../../_shared/identity';
-import { isReplayRecord, replayDedupKey } from '../../_shared/replay-record';
-import { isShareCodeRecord, shareCodeKey } from '../../_shared/share-code';
+import { CONTROL_STORE_NAME, DATA_STORE_NAME } from '../../_shared/constants.js';
+import type { FunctionContext } from '../../_shared/constants.js';
+import { errorResponse, jsonResponse } from '../../_shared/http.js';
+import { shanghaiDay } from '../../_shared/identity.js';
+import { isReplayRecord, replayDedupKey } from '../../_shared/replay-record.js';
+import { isShareCodeRecord, shareCodeKey } from '../../_shared/share-code.js';
 
 const MAX_DELETES_PER_RUN = 2_000;
 const DELETE_BATCH_SIZE = 20;

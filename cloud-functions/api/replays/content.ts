@@ -1,12 +1,12 @@
 import { getStore, type Store } from '@edgeone/pages-blob';
-import { CONTROL_STORE_NAME, DATA_STORE_NAME } from '../../_shared/constants';
-import type { FunctionContext } from '../../_shared/constants';
-import { parseCapability } from '../../_shared/capability';
-import { errorResponse, HttpError } from '../../_shared/http';
+import { CONTROL_STORE_NAME, DATA_STORE_NAME } from '../../_shared/constants.js';
+import type { FunctionContext } from '../../_shared/constants.js';
+import { parseCapability } from '../../_shared/capability.js';
+import { errorResponse, HttpError } from '../../_shared/http.js';
 import {
   isReplayRecord,
   replayCapabilityKey,
-} from '../../_shared/replay-record';
+} from '../../_shared/replay-record.js';
 
 export async function replayContentResponse(
   request: Request,

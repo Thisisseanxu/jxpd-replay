@@ -10,12 +10,12 @@ import {
   DATA_STORE_NAME,
   MAX_CONTAINER_BYTES,
   type FunctionContext,
-} from '../cloud-functions/_shared/constants';
-import { jsonResponse } from '../cloud-functions/_shared/http';
-import { replayContentResponse } from '../cloud-functions/api/replays/content';
-import { replayCodeResponse } from '../cloud-functions/api/replays/code';
-import { replayUploadResponse } from '../cloud-functions/api/replays/index';
-import { LocalFileStore } from './local-file-store';
+} from '../cloud-functions/_shared/constants.js';
+import { jsonResponse } from '../cloud-functions/_shared/http.js';
+import { replayContentResponse } from '../cloud-functions/api/replays/content.js';
+import { replayCodeResponse } from '../cloud-functions/api/replays/code.js';
+import { replayUploadResponse } from '../cloud-functions/api/replays/index.js';
+import { LocalFileStore } from './local-file-store.js';
 
 type LocalReplayApiOptions = {
   rootDirectory: string;
