@@ -40,7 +40,6 @@
           :zip-export="zipExport"
           :busy="busy"
           :can-export="Boolean(analysis)"
-          :can-share="Boolean(analysis && sourceBytes)"
           :last-export="lastExport"
           @toggle-player="toggleRevealPlayer"
           @all-anonymous="setAllAnonymous"
@@ -58,12 +57,26 @@
         <span>吉星派对 Replay Lab</span>
         <span>v{{ appVersion }}</span>
       </span>
-      <a
-        href="https://github.com/Thisisseanxu/jxpd-replay"
-        target="_blank"
-        rel="noopener noreferrer"
-        ><GithubOne theme="outline" size="14" />开源地址</a
-      >
+      <div class="footer-links">
+        <a
+          href="https://www.bilibili.com/video/BV1mvbV6oEf9/"
+          target="_blank"
+          rel="noopener noreferrer"
+          ><Help size="21" fill="currentColor" />如何使用回放</a
+        >
+        <a
+          href="https://www.bilibili.com/video/BV13FY26vEXf/"
+          target="_blank"
+          rel="noopener noreferrer"
+          ><Help size="21" fill="currentColor" />使用教程</a
+        >
+        <a
+          href="https://github.com/Thisisseanxu/jxpd-replay"
+          target="_blank"
+          rel="noopener noreferrer"
+          ><GithubOne theme="outline" size="21" />开源地址</a
+        >
+      </div>
     </footer>
   </main>
 </template>
@@ -71,7 +84,7 @@
 <script setup lang="ts">
 import { computed, onMounted, ref } from "vue";
 import { useRouter } from "vue-router";
-import { GithubOne } from "@icon-park/vue-next";
+import { GithubOne, Help } from "@icon-park/vue-next";
 import { zipSync } from "fflate";
 import AnonymizeSettings from "../components/AnonymizeSettings.vue";
 import ReplayOverview from "../components/ReplayOverview.vue";
@@ -195,7 +208,11 @@ function createAnonymousReplay() {
 }
 
 async function prepareShare() {
-  if (!analysis.value || !file.value || busy.value) return;
+  if (busy.value) return;
+  if (!analysis.value || !file.value || !sourceBytes.value) {
+    await router.push(sharePagePath());
+    return;
+  }
   busy.value = true;
   notice.value = "正在准备匿名化副本…";
   try {

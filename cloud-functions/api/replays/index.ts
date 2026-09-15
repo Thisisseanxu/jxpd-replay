@@ -59,13 +59,21 @@ async function reserveShareCode(
   throw new Error('无法生成唯一分享码');
 }
 
+async function waitForWrites(writes: Promise<unknown>[]) {
+  const results = await Promise.allSettled(writes);
+  const failure = results.find(
+    (result): result is PromiseRejectedResult => result.status === 'rejected',
+  );
+  if (failure) throw failure.reason;
+}
+
 export async function replayUploadResponse(
   context: FunctionContext,
   storeFactory: (name: string) => Store = getStore,
 ) {
   try {
     const { request } = context;
-    assertUploadRequest(request);
+    const publicOrigin = assertUploadRequest(request);
     const env = context.env || process.env;
     const quotaSecret = requiredSecret(env, 'REPLAY_QUOTA_SECRET');
     const deviceSecret = requiredSecret(env, 'REPLAY_DEVICE_SECRET');
@@ -94,16 +102,18 @@ export async function replayUploadResponse(
     const control = storeFactory(CONTROL_STORE_NAME);
     const ipHash = quotaHash(quotaSecret, `${today}|ip|${clientIp}`);
     const deviceHash = quotaHash(quotaSecret, `${today}|device|${device.id}`);
-    await claimSlots(
-      control,
-      `quota/${today}/${tier}/ip/${ipHash}`,
-      perSubjectLimit,
-    );
-    await claimSlots(
-      control,
-      `quota/${today}/${tier}/device/${deviceHash}`,
-      perSubjectLimit,
-    );
+    await Promise.all([
+      claimSlots(
+        control,
+        `quota/${today}/${tier}/ip/${ipHash}`,
+        perSubjectLimit,
+      ),
+      claimSlots(
+        control,
+        `quota/${today}/${tier}/device/${deviceHash}`,
+        perSubjectLimit,
+      ),
+    ]);
     if (tier === 'trusted') {
       const pepper = requiredSecret(env, 'REPLAY_INVITE_PEPPER');
       const invite = validateInvite(
@@ -196,9 +206,11 @@ export async function replayUploadResponse(
         body.byteOffset + body.byteLength,
       ) as ArrayBuffer;
       const alreadyStored =
-        nextDataKey === previousDataKey &&
-        (await data.getMetadata(nextDataKey, { consistency: 'strong' })) !==
-          null;
+        ownsDedupRecord
+          ? false
+          : nextDataKey === previousDataKey &&
+            (await data.getMetadata(nextDataKey, { consistency: 'strong' })) !==
+              null;
       if (!alreadyStored) {
         try {
           await data.set(nextDataKey, arrayBuffer, {
@@ -211,19 +223,19 @@ export async function replayUploadResponse(
         }
       }
 
-      await control.setJSON(
-        replayCapabilityKey(updatedRecord.token),
-        updatedRecord,
-        {
-          cacheControl: null,
-        },
-      );
-      await control.setJSON(
-        shareCodeKey(updatedRecord.shareCode),
-        { token: updatedRecord.token, expiresAt } satisfies ShareCodeRecord,
-        { cacheControl: null },
-      );
-      await control.setJSON(dedupKey, updatedRecord, { cacheControl: null });
+      await waitForWrites([
+        control.setJSON(
+          replayCapabilityKey(updatedRecord.token),
+          updatedRecord,
+          { cacheControl: null },
+        ),
+        control.setJSON(
+          shareCodeKey(updatedRecord.shareCode),
+          { token: updatedRecord.token, expiresAt } satisfies ShareCodeRecord,
+          { cacheControl: null },
+        ),
+        control.setJSON(dedupKey, updatedRecord, { cacheControl: null }),
+      ]);
       if (previousDataKey !== nextDataKey) {
         await data.delete(previousDataKey).catch(() => undefined);
       }
@@ -269,10 +281,9 @@ export async function replayUploadResponse(
       throw error;
     }
 
-    const origin = new URL(request.url).origin;
     return jsonResponse(
       {
-        shareUrl: `${origin}/share#/r/${replayRecord.token}`,
+        shareUrl: `${publicOrigin}/share#/r/${replayRecord.token}`,
         shareCode: replayRecord.shareCode,
         expiresAt: new Date(replayRecord.expiresAt * 1000).toISOString(),
         originalBytes: validated.originalBytes,

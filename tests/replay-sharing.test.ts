@@ -409,9 +409,9 @@ describe('share routes', () => {
   it('recognizes the share page and preserves fragment capabilities', () => {
     expect(isSharePath('/share')).toBe(true);
     expect(isSharePath('/share/')).toBe(true);
-    expect(isShareCodePath('/share/code')).toBe(true);
-    expect(isShareCodePath('/share/code/')).toBe(true);
-    expect(isKnownPath('/share/code')).toBe(true);
+    expect(isShareCodePath('/code')).toBe(true);
+    expect(isShareCodePath('/code/')).toBe(true);
+    expect(isKnownPath('/code')).toBe(true);
     expect(isSharePath('/')).toBe(false);
     expect(sharePagePath('?from=tool', '#/r/test')).toBe(
       '/share?from=tool#/r/test',
@@ -723,6 +723,33 @@ describe('upload API policies', () => {
     await expect(resolved.json()).resolves.toMatchObject({
       token: result.shareUrl.split('/share#/r/')[1],
     });
+  });
+
+  it('uses the validated browser origin instead of the proxy request URL', async () => {
+    const stores = memoryStores();
+    const { env } = uploadEnvironment();
+    const request = new Request(
+      'http://pages-pro-29-a02a.pages-scf-gz-pro.qcloudteo.com/api/replays',
+      {
+        method: 'POST',
+        headers: {
+          'content-type': 'application/vnd.jxpd.replay-share-v1',
+          'x-replay-retention': '7',
+          origin: 'https://jxdev.mhpd.fans',
+        },
+        body: serverContainer(validReplay()).slice().buffer,
+      },
+    );
+    const response = await replayUploadResponse(
+      { request, clientIp: '203.0.113.11', env },
+      stores.factory,
+    );
+    const result = (await response.json()) as { shareUrl: string };
+
+    expect(response.status).toBe(201);
+    expect(result.shareUrl).toMatch(
+      /^https:\/\/jxdev\.mhpd\.fans\/share#\/r\/[A-Za-z0-9_-]{39}$/,
+    );
   });
 
   it('reuses the link, share code, and data object while refreshing an identical upload', async () => {

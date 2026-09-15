@@ -1,6 +1,6 @@
 export const ROOT_PATH = "/";
 export const SHARE_PATH = "/share";
-export const SHARE_CODE_PATH = "/share/code";
+export const SHARE_CODE_PATH = "/code";
 
 export function isKnownPath(pathname: string) {
   return (

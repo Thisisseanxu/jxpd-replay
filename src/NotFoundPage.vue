@@ -47,11 +47,19 @@
       <span>吉星派对 Replay Lab</span>
       <span class="footer-divider" aria-hidden="true" />
       <span>本地处理 · 安全分享</span>
+      <a
+        href="https://www.bilibili.com/video/BV1mvbV6oEf9/"
+        target="_blank"
+        rel="noopener noreferrer"
+        ><Help size="21" fill="currentColor" />如何使用回放</a
+      >
     </footer>
   </main>
 </template>
 
 <script setup lang="ts">
+import { Help } from "@icon-park/vue-next";
+
 const logoUrl = `${import.meta.env.BASE_URL}logo.webp`;
 </script>
 
@@ -307,7 +315,7 @@ const logoUrl = `${import.meta.env.BASE_URL}logo.webp`;
   border-top: 1px solid rgba(193, 160, 255, 0.1);
   color: #5f5474;
   font-family: "Manrope", "Noto Sans SC", sans-serif;
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.04em;
 }
 .footer-divider {
@@ -316,6 +324,18 @@ const logoUrl = `${import.meta.env.BASE_URL}logo.webp`;
   border-radius: 50%;
   background: var(--gold);
   opacity: 0.72;
+}
+.not-found-footer a {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--purple-bright);
+  text-decoration: none;
+  transition: color 0.18s ease;
+}
+.not-found-footer a:hover {
+  color: var(--ink);
+  text-decoration: underline;
 }
 @media (max-width: 620px) {
   .not-found-shell {

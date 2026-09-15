@@ -118,7 +118,7 @@
   border-top: 1px solid rgba(193, 160, 255, 0.1);
   color: #5f5474;
   font-family: "Manrope", "Noto Sans SC", sans-serif;
-  font-size: 10px;
+  font-size: 15px;
   letter-spacing: 0.04em;
 }
 .footer-meta {
@@ -126,10 +126,16 @@
   align-items: center;
   gap: 12px;
 }
+.footer-links {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 16px;
+}
 .page-footer a {
   display: flex;
   align-items: center;
-  gap: 0;
+  gap: 6px;
   color: var(--purple-bright);
   line-height: 1;
   text-decoration: none;
@@ -169,6 +175,9 @@
     align-items: flex-start;
     flex-direction: column;
     gap: 7px;
+  }
+  .footer-links {
+    gap: 9px 14px;
   }
   .footer-meta {
     gap: 9px;

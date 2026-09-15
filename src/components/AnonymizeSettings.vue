@@ -96,9 +96,9 @@
       <button
         type="button"
         class="share-circle-button"
-        :disabled="!canShare || busy"
-        aria-label="使用匿名副本创建分享"
-        title="使用匿名副本创建分享"
+        :disabled="busy"
+        aria-label="前往分享页"
+        title="前往分享页"
         @click="$emit('share')"
       >
         <ShareOne size="18" fill="currentColor" />
@@ -140,7 +140,6 @@ const props = defineProps<{
   zipExport: boolean;
   busy: boolean;
   canExport: boolean;
-  canShare: boolean;
   lastExport: string | null;
 }>();
 

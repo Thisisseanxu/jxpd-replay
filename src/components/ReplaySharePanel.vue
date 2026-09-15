@@ -71,7 +71,10 @@
             <Copy size="14" fill="currentColor" />
             {{ copiedCode ? "已复制" : "复制分享码" }}
           </button>
-          <RouterLink to="/share/code">输入分享码打开</RouterLink>
+          <button type="button" @click="copyShareMessage">
+            <Copy size="14" fill="currentColor" />
+            {{ copiedMessage ? "已复制" : "复制完整文案" }}
+          </button>
         </div>
       </div>
     </div>
@@ -89,6 +92,7 @@ const props = defineProps<{
   inviteCode: string;
   canShare: boolean;
   busy: boolean;
+  fileName: string;
   result: ShareUploadResult | null;
   error: string;
 }>();
@@ -101,6 +105,7 @@ const emit = defineEmits<{
 
 const copied = ref(false);
 const copiedCode = ref(false);
+const copiedMessage = ref(false);
 const qrDataUrl = ref("");
 let qrGeneration = 0;
 
@@ -120,6 +125,15 @@ async function copyShareCode() {
   await navigator.clipboard.writeText(props.result.shareCode);
   copiedCode.value = true;
   window.setTimeout(() => (copiedCode.value = false), 1800);
+}
+
+async function copyShareMessage() {
+  if (!props.result) return;
+  const codePageUrl = `${window.location.origin}/code`;
+  const message = `我分享了一局吉星派对回放【${props.fileName}】，分享码：${props.result.shareCode}。前往${codePageUrl}填写分享码即可下载观看！`;
+  await navigator.clipboard.writeText(message);
+  copiedMessage.value = true;
+  window.setTimeout(() => (copiedMessage.value = false), 1800);
 }
 
 watch(

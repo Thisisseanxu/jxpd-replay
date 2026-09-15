@@ -4,13 +4,13 @@
 
 分享创建页位于 `/share`。浏览器会使用用户选中的标准回放，或接收匿名化工具通过临时 IndexedDB 传来的匿名副本；随后在 Web Worker 中把同类 command 的 payload 无损分组，以紧凑 varint 保存命令表、payload 长度和原始帧顺序，再用 `brotli-wasm` quality 11 压缩并封装成 JXRS v1。`POST /api/replays` 流式限制请求体、解压、还原标准回放并校验，再写入 `replay-data`。额度占位、清理锁等控制对象写入 `replay-control`。
 
-生成的分享链接格式为 `/share#/r/<capability>`。凭证仍只存在 URL fragment 中；旧版 `/#/r/<capability>` 链接会由前端兼容跳转到新地址。每条分享同时生成一个 6 位字母数字分享码，服务端只保存分享码到能力令牌的私有映射；`/share/code` 页面可输入分享码跳转到下载页。服务端按完整 JXRS 容器的 SHA-256 建立私有去重索引，完全相同的文件会复用原链接、分享码和数据对象，并从本次上传重新计算有效期。去重发生在额度占位及完整校验之后，因此重复分享仍消耗 IP、设备、邀请码和全站额度。跨页面文件传递记录只保留 5 分钟，读取后立即删除。
+生成的分享链接格式为 `/share#/r/<capability>`。凭证仍只存在 URL fragment 中；旧版 `/#/r/<capability>` 链接会由前端兼容跳转到新地址。每条分享同时生成一个 6 位字母数字分享码，服务端只保存分享码到能力令牌的私有映射；`/code` 页面可输入分享码跳转到下载页。服务端按完整 JXRS 容器的 SHA-256 建立私有去重索引，完全相同的文件会复用原链接、分享码和数据对象，并从本次上传重新计算有效期。去重发生在额度占位及完整校验之后，因此重复分享仍消耗 IP、设备、邀请码和全站额度。跨页面文件传递记录只保留 5 分钟，读取后立即删除。
 
 分享记录下载页会默认填充 `jxpd-replay-<token后8位>` 文件名。下载设置中的 ZIP 开关默认开启，生成的压缩包只包含一个同名文件夹，文件夹内只有同名标准回放文件；关闭开关时直接下载标准回放文件。文件名会在下载前过滤 Windows 路径保留字符。
 
 Blob 不使用预签名直传，因为预签名 PUT 不能约束最终字节数，也不能在写入前验证回放结构。两个 Blob 命名空间只由 Functions SDK 访问，浏览器不持有 Blob Token。Blob SDK 会在首次使用命名空间时创建它。
 
-上传接口接受请求 URL 的同源 `Origin`，并额外允许 `https://jx.mhpd.fans` 与 `https://jxdev.mhpd.fans` 访问同一套 Functions 和 Blob；其他跨域来源仍返回 `403`。
+上传接口接受请求 URL 的同源 `Origin`，并额外允许 `https://jx.mhpd.fans` 与 `https://jxdev.mhpd.fans` 访问同一套 Functions 和 Blob；其他跨域来源仍返回 `403`。分享链接使用经过校验的浏览器 `Origin` 生成，不使用 Cloud Functions 反向代理传入的内部请求域名，因此链接文字和二维码会保持用户当前访问的站点域名。
 
 ## EdgeOne Makers 部署
 

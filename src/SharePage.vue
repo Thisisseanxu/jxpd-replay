@@ -27,7 +27,7 @@
         </div>
       </div>
       <nav class="page-nav-group" aria-label="页面导航">
-        <RouterLink class="page-nav" to="/share/code"
+        <RouterLink class="page-nav" to="/code"
           >输入分享码 <Right size="15" fill="currentColor"
         /></RouterLink>
         <RouterLink class="page-nav" to="/"
@@ -80,6 +80,7 @@
           :invite-code="inviteCode"
           :can-share="Boolean(analysis && sourceBytes)"
           :busy="shareBusy"
+          :file-name="file?.name || 'replay'"
           :result="shareResult"
           :error="shareError"
           @update:retention-days="retentionDays = $event"
@@ -94,12 +95,20 @@
         <span>吉星派对 Replay Lab</span>
         <span>v{{ appVersion }}</span>
       </span>
-      <a
-        href="https://github.com/Thisisseanxu/jxpd-replay"
-        target="_blank"
-        rel="noopener noreferrer"
-        ><GithubOne theme="outline" size="14" />开源地址</a
-      >
+      <div class="footer-links">
+        <a
+          href="https://www.bilibili.com/video/BV1mvbV6oEf9/"
+          target="_blank"
+          rel="noopener noreferrer"
+          ><Help size="21" fill="currentColor" />如何使用回放</a
+        >
+        <a
+          href="https://github.com/Thisisseanxu/jxpd-replay"
+          target="_blank"
+          rel="noopener noreferrer"
+          ><GithubOne theme="outline" size="21" />开源地址</a
+        >
+      </div>
     </footer>
   </main>
 </template>
@@ -107,7 +116,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, onMounted, ref, watch } from "vue";
 import { useRoute, useRouter } from "vue-router";
-import { GithubOne, Right, Shield } from "@icon-park/vue-next";
+import { GithubOne, Help, Right, Shield } from "@icon-park/vue-next";
 import ReplaySharePanel from "./components/ReplaySharePanel.vue";
 import ReplayUploader from "./components/ReplayUploader.vue";
 import SharedReplayView from "./components/SharedReplayView.vue";

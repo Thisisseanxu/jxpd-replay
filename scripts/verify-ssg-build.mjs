@@ -20,7 +20,7 @@ function assert(condition, message) {
 const pages = [
   ["index.html", "吉星派对 · 回放匿名化与分享"],
   ["share/index.html", "分享回放 | 吉星派对 Replay Lab"],
-  ["share/code/index.html", "输入分享码 | 吉星派对 Replay Lab"],
+  ["code/index.html", "输入分享码 | 吉星派对 Replay Lab"],
 ];
 
 for (const [relativePath, expectedTitle] of pages) {

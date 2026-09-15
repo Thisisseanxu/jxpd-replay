@@ -44,7 +44,9 @@ export function assertUploadRequest(request: Request) {
     throw new HttpError(415, '上传格式不受支持');
   }
 
+  const requestOrigin = new URL(request.url).origin;
   const origin = request.headers.get('origin');
+  let publicOrigin = requestOrigin;
   if (origin) {
     let normalizedOrigin = '';
     try {
@@ -55,17 +57,19 @@ export function assertUploadRequest(request: Request) {
       // 非法 Origin 统一按跨站请求拒绝。
     }
     if (
-      normalizedOrigin !== new URL(request.url).origin &&
+      normalizedOrigin !== requestOrigin &&
       !TRUSTED_UPLOAD_ORIGINS.has(normalizedOrigin)
     ) {
       throw new HttpError(403, '只允许从本站上传回放');
     }
+    publicOrigin = normalizedOrigin;
   }
 
   const declaredLength = Number(request.headers.get('content-length'));
   if (Number.isFinite(declaredLength) && declaredLength > MAX_CONTAINER_BYTES) {
     throw new HttpError(413, '压缩后的回放超过 256 KiB');
   }
+  return publicOrigin;
 }
 
 function bodyChunk(value: unknown) {

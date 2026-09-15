@@ -36,7 +36,7 @@ npm run build
 ## 路由与 SSG
 
 - `App.vue` 只负责全局壳层（路由出口、更新提示和页面 head），实际页面由 `src/router.ts` 控制。
-- `/`、`/share` 和 `/share/code` 使用 `vite-ssg` 预渲染为对应的 `dist/**/index.html`，路由 `meta.title`、描述、robots、Open Graph 和 canonical 会写入各自 HTML。
+- `/`、`/share` 和 `/code` 使用 `vite-ssg` 预渲染为对应的 `dist/**/index.html`，路由 `meta.title`、描述、robots、Open Graph 和 canonical 会写入各自 HTML。
 - `spa.html` 是非预渲染路由使用的 SPA 入口；运行 `npm run build:verify` 可检查 SSG 页面及页面 head。
 
 ## 分享功能
@@ -44,7 +44,7 @@ npm run build
 - 匿名分享默认保存 7 天，无需注册。
 - 有效邀请码可选择保存 90 天。
 - 分享创建页位于 `/share`，生成的链接为 `/share#/r/<capability>`；凭证只出现在 URL fragment 中，下载时通过 `Authorization: Replay ...` 发送。
-- 生成分享后会同时提供二维码和 6 位字母数字分享码；也可以在 `/share/code` 输入分享码跳转到回放下载页。
+- 生成分享后会同时提供二维码和 6 位字母数字分享码；也可以在 `/code` 输入分享码跳转到回放下载页。
 - 完全相同的 JXRS 文件会复用同一链接、分享码和数据对象；再次分享会从当次上传重新计算有效期，但仍照常消耗上传额度。
 - 匿名化工具的圆形分享按钮会把当前匿名副本直接交给 `/share`，无需重新选择文件；分享页也会提示未匿名文件并提供跳转入口。
 - 分享记录下载时可自定义默认填充的文件名；ZIP 开关默认开启，压缩包内为同名文件夹和同名回放文件。
