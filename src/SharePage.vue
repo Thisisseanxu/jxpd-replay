@@ -210,7 +210,7 @@ async function handleFileSelected(
     handoffPrivacyMode.value = privacyModeOverride;
     privacyAssessment.value =
       privacyModeOverride || detectPrivacy(nextAnalysis);
-    notice.value = `已解析 ${nextAnalysis.frameCount.toLocaleString()} 个回放帧`;
+    notice.value = "回放文件已加载";
   } catch (error) {
     file.value = null;
     sourceBytes.value = null;

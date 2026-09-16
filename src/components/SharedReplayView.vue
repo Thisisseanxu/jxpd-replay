@@ -27,9 +27,6 @@
 
         <div class="shared-stats">
           <div>
-            <span>文件大小</span><b>{{ formatBytes(analysis.size) }}</b>
-          </div>
-          <div>
             <span>有效期至</span><b>{{ expiryLabel }}</b>
           </div>
         </div>
@@ -78,6 +75,7 @@
           {{ zipDownload ? "下载 ZIP 压缩包" : "下载回放文件" }}
         </button>
         <button type="button" class="back-button" @click="$emit('back')">
+          <ShareOne size="15" fill="currentColor" />
           我也要分享
         </button>
       </template>
@@ -87,8 +85,7 @@
 
 <script setup lang="ts">
 import { computed, ref, watch } from "vue";
-import { Caution, Download, Star } from "@icon-park/vue-next";
-import { formatBytes } from "../utils/replay";
+import { Caution, Download, ShareOne, Star } from "@icon-park/vue-next";
 import type { ReplayAnalysis } from "../utils/replay";
 import type { ReplayPrivacyMode } from "../utils/replay-container";
 import type { ReplayDownloadOptions } from "../utils/replay-download";
@@ -242,7 +239,7 @@ const expiryLabel = computed(() =>
 }
 .shared-stats {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr);
   gap: 9px;
 }
 .shared-stats > div {
@@ -408,10 +405,16 @@ const expiryLabel = computed(() =>
   font-weight: 800;
 }
 .back-button {
-  display: block;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  width: max-content;
   margin: 0 auto 0;
   border: 0;
   background: transparent;
   color: var(--muted);
+  font-size: 15px;
+  line-height: 1;
 }
 </style>

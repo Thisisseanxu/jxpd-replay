@@ -16,11 +16,6 @@
         <div class="file-icon"><FileText size="26" fill="currentColor" /></div>
         <div class="file-copy">
           <strong :title="file.name">{{ file.name }}</strong>
-          <span
-            >{{ formatBytes(analysis.size) }} <i />
-            {{ analysis.frameCount.toLocaleString() }} 帧 <i />
-            {{ analysis.commandCount }} 类命令</span
-          >
         </div>
         <button
           class="quiet-button"
@@ -65,7 +60,6 @@
 <script setup lang="ts">
 import { ref } from "vue";
 import { FileText, FolderOpen, Refresh, Upload } from "@icon-park/vue-next";
-import { formatBytes } from "../utils/replay";
 import type { ReplayAnalysis } from "../utils/replay";
 
 withDefaults(defineProps<{
@@ -220,22 +214,6 @@ function onFileChange(event: Event) {
   font-size: 15px;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-.file-copy span {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  color: var(--muted);
-  font-family: "Manrope", sans-serif;
-  font-size: 11px;
-}
-.file-copy i,
-.status-line i {
-  display: inline-block;
-  width: 3px;
-  height: 3px;
-  border-radius: 50%;
-  background: var(--soft);
 }
 .quiet-button {
   display: inline-flex;

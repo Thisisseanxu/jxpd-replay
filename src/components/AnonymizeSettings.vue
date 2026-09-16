@@ -50,10 +50,12 @@
 
     <div class="setting-divider" />
     <div class="setting-card">
-      <label class="toggle-row" for="preserve-room-name" aria-label="保留房间名">
-        <span class="toggle-copy"
-          ><b>保留房间名</b><small>便于分享者辨认这场对局</small></span
-        >
+      <label
+        class="toggle-row"
+        for="preserve-room-name"
+        aria-label="保留房间名"
+      >
+        <span class="toggle-copy"><b>保留房间名</b></span>
         <input
           id="preserve-room-name"
           type="checkbox"
@@ -66,7 +68,7 @@
     <div class="setting-card">
       <div class="setting-block export-block">
         <div class="setting-title">导出文件名</div>
-        <div class="setting-subtitle">默认与导入文件同名，可直接修改。</div>
+        <div class="setting-subtitle">默认与导入文件同名，可在此直接修改</div>
         <input
           class="export-name-input"
           type="text"
@@ -80,7 +82,8 @@
     <div class="setting-card">
       <label class="toggle-row zip-export-toggle" for="zip-export">
         <span class="toggle-copy"
-          ><b>导出 ZIP 压缩包</b><small>内部为同名文件夹和回放文件</small></span
+          ><b>导出 ZIP 压缩包</b
+          ><small>包含文件夹和回放文件，直接解压即可导入游戏</small></span
         >
         <input
           id="zip-export"

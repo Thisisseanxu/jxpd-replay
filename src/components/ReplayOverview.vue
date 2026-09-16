@@ -17,12 +17,6 @@
         }}</strong>
       </div>
       <div class="stat-card">
-        <span>回放帧</span
-        ><strong>{{
-          analysis ? analysis.frameCount.toLocaleString() : "—"
-        }}</strong>
-      </div>
-      <div class="stat-card">
         <span>玩家</span
         ><strong>{{ analysis ? `${analysis.players.length} 位` : "—" }}</strong>
       </div>
@@ -89,7 +83,7 @@ h2 {
 }
 .stats-row {
   display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 9px;
   margin-top: 22px;
 }

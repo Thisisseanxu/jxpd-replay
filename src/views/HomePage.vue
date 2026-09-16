@@ -123,7 +123,7 @@ async function handleFileSelected(nextFile: File) {
     sourceBytes.value = data;
     analysis.value = nextAnalysis;
     exportName.value = nextFile.name;
-    notice.value = `已解析 ${nextAnalysis.frameCount.toLocaleString()} 个回放帧`;
+    notice.value = "回放文件已加载";
   } catch (error) {
     file.value = null;
     sourceBytes.value = null;
