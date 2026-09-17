@@ -66,3 +66,5 @@ Remove-Item Env:JXPD_PRIVATE_REPLAYS
 ```
 
 测试会检查原始、完全匿名、自定义保留三种模式都不超过 256 KiB，并验证服务端解析及逐字节 SHA-256 恢复。
+
+运行 `npm test` 时，如果没有设置 `JXPD_PRIVATE_REPLAYS`，会先清空项目根目录的 `.local-blob/`，避免本地 Blob 残留影响常规测试；设置该变量进行私有文件回归时会保留本地 Blob。

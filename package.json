@@ -1,6 +1,6 @@
 {
   "name": "jxpd-replay",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "private": true,
   "engines": {
     "node": "^20.19.0 || >=22.12.0"
@@ -15,12 +15,12 @@
     "start": "vite preview",
     "lint": "oxlint src cloud-functions dev tests scripts",
     "typecheck": "vue-tsc --noEmit",
-    "test": "vitest run",
+    "test": "node scripts/prepare-test-blob.mjs && vitest run",
     "invite:hash": "node scripts/hash-replay-invite.mjs",
     "format": "oxfmt",
-    "version:patch": "npm version patch --no-git-tag-version",
-    "version:minor": "npm version minor --no-git-tag-version",
-    "version:major": "npm version major --no-git-tag-version"
+    "patch": "npm version patch --no-git-tag-version",
+    "minor": "npm version minor --no-git-tag-version",
+    "major": "npm version major --no-git-tag-version"
   },
   "dependencies": {
     "@edgeone/pages-blob": "^0.0.16",

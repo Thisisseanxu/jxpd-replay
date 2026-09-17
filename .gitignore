@@ -23,6 +23,9 @@
 .DS_Store
 *.pem
 
+# openai sites hosting
+/.openai/hosting.json
+
 # debug
 npm-debug.log*
 yarn-debug.log*

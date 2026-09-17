@@ -1124,7 +1124,7 @@ describe('capabilities and atomic quotas', () => {
     await store.delete(first);
     await expect(
       claimGlobal(store, 'quota/day/global/anonymous', 2),
-    ).resolves.toContain('/0');
+    ).resolves.toBe(first);
   });
 });
 

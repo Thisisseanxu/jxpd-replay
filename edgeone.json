@@ -2,7 +2,8 @@
   "buildCommand": "npm run build",
   "devCommand": "npm run dev:edgeone",
   "installCommand": "npm ci",
-  "outputDirectory": "dist",
+  "outputDirectory": "./dist",
+  "nodeVersion": "24.5.0",
   "headers": [
     {
       "source": "/*",
@@ -17,6 +18,69 @@
         {
           "key": "Content-Security-Policy",
           "value": "default-src 'self'; base-uri 'none'; object-src 'none'; frame-ancestors 'none'; form-action 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self' 'unsafe-hashes' 'sha256-Qf4xqtNKtDLwxce6HLtD5Y6BWpOeR7TnDpNSo+Bhb3s='; img-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'"
+        }
+      ]
+    },
+    {
+      "source": "/*.html",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/manifest.webmanifest",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate"
+        }
+      ]
+    },
+    {
+      "source": "/sw.js",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0, must-revalidate, no-cache"
+        }
+      ]
+    },
+    {
+      "source": "/images/characters/*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=7776000"
+        }
+      ]
+    },
+    {
+      "source": "/images/qban/*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=7776000"
+        }
+      ]
+    },
+    {
+      "source": "/images/*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=7776000"
+        }
+      ]
+    },
+    {
+      "source": "/assets/*",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=7776000"
         }
       ]
     }
